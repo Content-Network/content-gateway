@@ -12,6 +12,7 @@ import { createBANKTransferLoader } from "./bankless-token/BanklessTokenTransfer
 import { createBanklessWebsitePostLoader } from "./bankless-website/BanklessGhostPostLoader";
 import { createPOAPEventLoader } from "./poap-token/POAPEventLoader";
 import { createPOAPTransferLoader } from "./poap-token/POAPTransferLoader";
+import { createSnapshotProposalLoader } from "./snapshot";
 
 export type ApiKeys = {
     youtubeApiKey: string;
@@ -34,4 +35,5 @@ export const createLoaders = (apiKeys: ApiKeys) =>
         createPOAPTokenLoader(),
         createPOAPAccountLoader(),
         createPOAPTransferLoader(),
+        createSnapshotProposalLoader("banklessvault.eth"), // TODO: remove magic string
     ] as DataLoader<unknown>[];
