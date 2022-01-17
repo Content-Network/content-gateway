@@ -11,7 +11,7 @@ import { withMessage } from "io-ts-types";
 
 const URL = "https://hub.snapshot.org/graphql";
 
-const makeQUERY: (space:String)=>DocumentNode = (space) => {
+export const makeQUERY: (space:String)=>DocumentNode = (space) => {
     space = `"${space}"` // So it gets parsed correctly
     return gql`
         query snapshotProposals($limit: Int,$cursor: Int) {
@@ -47,7 +47,7 @@ const makeQUERY: (space:String)=>DocumentNode = (space) => {
     `;
 }
 
-const ProposalCodec = t.strict({
+export const ProposalCodec = t.strict({
     id: t.string,
     author: t.string,
     created: t.number,
@@ -72,7 +72,7 @@ const ProposalCodec = t.strict({
     // votes: t.number
 });
 
-const ProposalsCodec = t.strict({
+export const ProposalsCodec = t.strict({
     proposals: t.array(ProposalCodec),
 });
 

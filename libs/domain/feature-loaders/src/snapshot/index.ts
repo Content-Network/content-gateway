@@ -1,1 +1,4 @@
-export * from "./SnapshotProposalLoader"
+export {
+    createSnapshotProposalLoader, 
+    SnapshotProposalLoader
+} from "./SnapshotProposalLoader"
