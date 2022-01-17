@@ -6,7 +6,7 @@ export type LoadContext = {
      * This is where we "left off" after the last loading. A cursor
      * is an opaque string that is usually a sequential id or a timestamp.
      */
-    cursor?: string;
+    cursor?: string | number;
     /**
      * The number of items to load.
      */

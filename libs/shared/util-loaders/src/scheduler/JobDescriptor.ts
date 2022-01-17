@@ -16,7 +16,7 @@ export type JobDescriptor = {
      * that represents the point where we "left off" since the last batch was loaded.
      * More info [here](http://mysql.rjweb.org/doc.php/pagination).
      */
-    readonly cursor: string;
+    readonly cursor: string | number;
     /**
      * The amount of records to load.
      */
