@@ -10,7 +10,7 @@ services:
             MONGO_INITDB_ROOT_PASSWORD: ${MONGO_CGA_PASSWORD}
             MONGO_INITDB_DATABASE: ${MONGO_CGA_USER}
         volumes:
-            - /mongo_cga:/data/db
+            - mongo_cga:/data/db
         ports:
             - "${MONGO_CGA_PORT}:27017"
         networks:
