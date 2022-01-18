@@ -1,7 +1,7 @@
 import { createGraphQLClient, GraphQLClient } from "@banklessdao/util-data";
 import { notEmpty } from "@banklessdao/util-misc";
 import { DEFAULT_CURSOR, ScheduleMode } from "@shared/util-loaders";
-import { Data, RequiredProperty } from "@banklessdao/util-schema";
+import { Data, NonEmptyProperty, RequiredProperty } from "@banklessdao/util-schema";
 import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
 import * as t from "io-ts";
@@ -42,16 +42,16 @@ const INFO = {
 @Data({
     info: INFO,
 })
-class ENSDomain {
-    @RequiredProperty()
+class Domain {
+    @NonEmptyProperty()
     id: string;
-    @RequiredProperty()
+    @NonEmptyProperty()
     createdAt: string;
     @RequiredProperty()
     labelName: string;
     @RequiredProperty()
     name: string;
-    @RequiredProperty()
+    @NonEmptyProperty()
     address: string;
 }
 
@@ -79,11 +79,11 @@ type ENSDomains = t.TypeOf<typeof ENSDomainsCodec>;
 
 export class ENSDomainLoader extends GraphQLDataLoaderBase<
     ENSDomains,
-    ENSDomain
+    Domain
 > {
     public info = INFO;
     protected batchSize = BATCH_SIZE;
-    protected type = ENSDomain;
+    protected type = Domain;
     protected cadenceConfig = {
         [ScheduleMode.BACKFILL]: { seconds: 5 },
         [ScheduleMode.INCREMENTAL]: { minutes: 5 },
@@ -96,7 +96,7 @@ export class ENSDomainLoader extends GraphQLDataLoaderBase<
         super(client);
     }
 
-    protected mapResult(ensDomains: ENSDomains): Array<ENSDomain> {
+    protected mapResult(ensDomains: ENSDomains): Array<Domain> {
         return ensDomains.domains
             .map((domain) => {
                 return {
@@ -113,7 +113,6 @@ export class ENSDomainLoader extends GraphQLDataLoaderBase<
     protected extractCursor(ensDomains: ENSDomains) {
         const obj = ensDomains.domains;
         if (obj.length === 0) {
-            // this is the only Domain which can have null - and we don't need it
             return DEFAULT_CURSOR;
         }
         return ensDomains.domains[ensDomains.domains.length - 1].createdAt;
