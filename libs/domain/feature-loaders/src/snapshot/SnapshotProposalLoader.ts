@@ -9,7 +9,7 @@ import { GraphQLDataLoaderBase } from "../base/GraphQLDataLoaderBase";
 import { BATCH_SIZE } from "../defaults";
 import { withMessage } from "io-ts-types";
 
-const URL = "https://hub.snapshot.org/graphql";
+export const URL = "https://hub.snapshot.org/graphql";
 
 export const makeQUERY: (space:String)=>DocumentNode = (space) => {
     space = `"${space}"` // So it gets parsed correctly
@@ -47,36 +47,39 @@ export const makeQUERY: (space:String)=>DocumentNode = (space) => {
     `;
 }
 
+// Helper for optional fields
+const optional = <T extends t.Mixed>(x:T)=>t.union([x,t.undefined])
+
 export const ProposalCodec = t.strict({
     id: t.string,
     author: t.string,
     created: t.number,
-    // space: t.strict({ // TODO: uncomment optional members
-    //     id: t.string,
-    //     name: t.string
-    // }),
-    // type: t.string,
+    space: optional(t.strict({
+        id: t.string,
+        name: t.string
+    })),
+    type: optional(t.string),
     strategies: withMessage(t.array(t.strict({
         name:t.string,
         params:t.unknown
     })),()=>"strategies failed"),
     title: t.string,
-    //body: t.string,
+    body: optional(t.string),
     choices: t.array(t.string),
     start: t.number,
     end: t.number,
     snapshot: t.string,
     state: t.string,
-    // link: t.string,
-    // scores: t.array(t.number),
-    // votes: t.number
+    link: optional(t.string),
+    scores: optional(t.array(t.number)),
+    votes: optional(t.number)
 });
 
 export const ProposalsCodec = t.strict({
     proposals: t.array(ProposalCodec),
 });
 
-type Proposals = t.TypeOf<typeof ProposalsCodec>;
+export type Proposals = t.TypeOf<typeof ProposalsCodec>;
 
 const INFO = {
     namespace: "snapshot",
@@ -98,7 +101,7 @@ class Proposal {
     //     id: string
     //     name: string
     // }
-    type:string
+    // type:string
     @NonEmptyProperty()
     strategies: {name:string,params:unknown}[]
     @NonEmptyProperty()
