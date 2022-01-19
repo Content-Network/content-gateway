@@ -1,6 +1,6 @@
 import { createGraphQLClient, GraphQLClient, ProgramError } from "@banklessdao/util-data";
 import { LoadContext, ScheduleMode } from "@shared/util-loaders";
-import { Data, NonEmptyProperty } from "@banklessdao/util-schema";
+import { Data, NonEmptyProperty, OptionalProperty, Property } from "@banklessdao/util-schema";
 import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
 import * as t from "io-ts";
@@ -90,25 +90,25 @@ const INFO = {
 @Data({
     info: INFO,
 })
-class Proposal {
+export class Proposal {
     @NonEmptyProperty()
     id: string
     @NonEmptyProperty()
     author: string
     @NonEmptyProperty()
     created: number
-    // space: {
-    //     id: string
-    //     name: string
-    // }
-    // type:string
-    @NonEmptyProperty()
-    strategies: {name:string,params:unknown}[]
+    @OptionalProperty()
+    space: string | undefined
+    @OptionalProperty()
+    type:string | undefined
+    // @NonEmptyProperty()
+    // strategies: {name:string,params:unknown}[]
     @NonEmptyProperty()
     title:string
-    //body: string
-    @NonEmptyProperty()
-    choices: string[]
+    @OptionalProperty()
+    body: string | undefined
+    // @NonEmptyProperty()
+    // choices: string[]
     @NonEmptyProperty()
     start: number
     @NonEmptyProperty()
@@ -117,16 +117,19 @@ class Proposal {
     snapshot: string
     @NonEmptyProperty()
     state: string
-    // link: string
-    // scores: number[]
-    // votes: number
+    @OptionalProperty()
+    link: string | undefined
+    // @OptionalProperty()
+    // scores: number[] | undefined
+    @OptionalProperty()
+    votes: number | undefined
 }
 
 export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Proposal> {
     public info = INFO;
 
     protected cursorMode = "cursor" as const;
-    protected batchSize = 1 //BATCH_SIZE; TODO: uncomment this
+    protected batchSize = BATCH_SIZE;
     protected type = Proposal;
     protected cadenceConfig = {
         [ScheduleMode.BACKFILL]: { seconds: 5 },
@@ -155,11 +158,7 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
     }
 
     protected mapResult(result: Proposals): Array<Proposal> {
-        return result.proposals.map((proposal)=>{
-            return {
-                ...proposal,
-            }
-        })
+        return result.proposals.map(removeUnsupportedProposalFields())
     }
 
     protected extractCursor(proposals: Proposals) {
@@ -170,3 +169,21 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
 
 export const createSnapshotProposalLoader: (space:string) => SnapshotProposalLoader = (space) =>
     new SnapshotProposalLoader(createGraphQLClient(URL),space);
+
+export function removeUnsupportedProposalFields(): (value: Proposals["proposals"][number]) => Proposal {
+    return (proposal) => ({
+        id: proposal.id,
+        author: proposal.author,
+        created: proposal.created,
+        space: proposal.space?.id,
+        type: proposal.type,
+        title: proposal.title,
+        body: proposal.body,
+        start: proposal.start,
+        end: proposal.end,
+        snapshot: proposal.snapshot,
+        state: proposal.state,
+        link: proposal.link,
+        votes: proposal.votes
+    });
+}

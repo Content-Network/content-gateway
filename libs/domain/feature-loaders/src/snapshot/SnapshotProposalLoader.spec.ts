@@ -1,8 +1,9 @@
-import {makeQUERY, Proposals,ProposalsCodec} from "./SnapshotProposalLoader"
+import {makeQUERY, Proposals,ProposalsCodec, Proposal, SnapshotProposalLoader, removeUnsupportedProposalFields} from "./SnapshotProposalLoader"
 import * as E from "fp-ts/Either";
 import { createGraphQLClient } from "@banklessdao/util-data";
 import { URL } from "./SnapshotProposalLoader"
 import { pipe } from "fp-ts/lib/function";
+import { createSchemaFromClass } from "@banklessdao/util-schema";
 
 const throwLeft = E.mapLeft(e=>{throw e})
 describe("SnapshotProposalLoader",()=>{
@@ -24,16 +25,34 @@ describe("SnapshotProposalLoader",()=>{
         })
         it("should return something that can be parsed by the codec", async ()=>{
             const response = await client.query(QUERY,vars,ProposalsCodec)()
-            throwLeft(response)
-            const test = ProposalsCodec.decode(response)
-            test
-            expect(E.isRight(ProposalsCodec.decode(response.right))).toBe(true)
+            pipe(
+              response,
+              throwLeft,
+              E.chain((r)=>ProposalsCodec.decode(r)),
+              E.isRight,
+              (wasSuccessfullyParsed) => expect(wasSuccessfullyParsed).toBe(true)
+            )
         })
     })
     describe("extractCursor",()=>{
         it("should successfully extract the timestamp from the last Proposal",()=>{
 
         })
+    })
+
+    describe("Schema",()=>{
+        it("should work on the output of the codec", ()=>{
+			pipe(
+				createSchemaFromClass(Proposal),
+				throwLeft,
+				E.chain((schema)=>schema.validate(pipe(
+					minimumProposals.proposals[0],
+					removeUnsupportedProposalFields()
+				) as Record<never,string>
+				)),
+				throwLeft
+			)
+		})
     })
 })
 
