@@ -10,6 +10,7 @@ import { createBanklessPodcastLoader } from "./bankless-podcast";
 import { createBANKTransactionLoader } from "./bankless-token/BanklessTokenTransactionLoader";
 import { createBANKTransferLoader } from "./bankless-token/BanklessTokenTransferLoader";
 import { createBanklessWebsitePostLoader } from "./bankless-website/BanklessGhostPostLoader";
+import { createENSDomainLoader } from "./ens/ENSLoader";
 import { createPOAPEventLoader } from "./poap-token/POAPEventLoader";
 import { createPOAPTransferLoader } from "./poap-token/POAPTransferLoader";
 
@@ -34,4 +35,5 @@ export const createLoaders = (apiKeys: ApiKeys) =>
         createPOAPTokenLoader(),
         createPOAPAccountLoader(),
         createPOAPTransferLoader(),
+        createENSDomainLoader(),
     ] as DataLoader<unknown>[];
