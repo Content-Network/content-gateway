@@ -1,5 +1,5 @@
 import { createGraphQLClient, GraphQLClient, ProgramError } from "@banklessdao/util-data";
-import { InternalLoadContext, LoadContext, ScheduleMode } from "@shared/util-loaders";
+import { InitContext, InternalLoadContext, LoadContext, ScheduleMode } from "@shared/util-loaders";
 import { Data, Nested, NonEmptyProperty, OptionalNumberArrayOf, OptionalObjectRef, OptionalProperty, OptionalStringArrayOf, Property, RequiredArrayRef, RequiredStringArrayOf } from "@banklessdao/util-schema";
 import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
@@ -19,8 +19,8 @@ export const makeQUERY: (space:String)=>DocumentNode = (space) => {
                 first: $limit,
                 where: {
                     space_in: [${space}],
-                    created_gt: $cursor
                 },
+                skip:$cursor,
                 orderBy: "created",
                 orderDirection: asc
             ) {
@@ -141,6 +141,8 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
     public info = INFO;
 
     protected cursorMode = "cursor" as const;
+    protected cursor: number;
+
     protected batchSize = BATCH_SIZE;
     protected type = Proposal;
     protected cadenceConfig = {
@@ -159,13 +161,16 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
     protected preLoad(
         context: InternalLoadContext
     ): TE.TaskEither<ProgramError, InternalLoadContext> {
-        // Avoid using a string by default
+        // Ensure a number cursor is used
         if (!context.cursor) {
             context.cursor = 0
         }
         if (typeof context.cursor == "string") {
             context.cursor = Number(context.cursor)
         }
+
+        this.cursor = context.cursor
+        
         return TE.right(context);
     }
 
@@ -174,8 +179,7 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
     }
 
     protected extractCursor(proposals: Proposals) {
-        const p = proposals.proposals
-        return String(p[p.length-1].created);
+        return String(this.cursor+proposals.proposals.length);
     }
 }
 
