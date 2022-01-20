@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 
 npm install
 script/prisma-generate cgl
