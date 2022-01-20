@@ -1,6 +1,6 @@
 import { createGraphQLClient, GraphQLClient, ProgramError } from "@banklessdao/util-data";
 import { LoadContext, ScheduleMode } from "@shared/util-loaders";
-import { Data, NonEmptyProperty, OptionalProperty, Property } from "@banklessdao/util-schema";
+import { Data, Nested, NonEmptyProperty, OptionalNumberArrayOf, OptionalObjectRef, OptionalProperty, OptionalStringArrayOf, Property, RequiredArrayRef, RequiredStringArrayOf } from "@banklessdao/util-schema";
 import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
 import * as t from "io-ts";
@@ -61,7 +61,6 @@ export const ProposalCodec = t.strict({
     type: optional(t.string),
     strategies: withMessage(t.array(t.strict({
         name:t.string,
-        params:t.unknown
     })),()=>"strategies failed"),
     title: t.string,
     body: optional(t.string),
@@ -86,6 +85,19 @@ const INFO = {
     name: "Proposal",
     version: "V1",
 };
+@Nested()
+class Space {
+    @OptionalProperty()
+    name: string
+    @NonEmptyProperty()
+    id: string
+}
+
+@Nested()
+class Strategy {
+    @NonEmptyProperty()
+    name:string
+}
 
 @Data({
     info: INFO,
@@ -97,18 +109,18 @@ export class Proposal {
     author: string
     @NonEmptyProperty()
     created: number
-    @OptionalProperty()
-    space: string | undefined
+    @OptionalObjectRef(Space)
+    space: Space | undefined
     @OptionalProperty()
     type:string | undefined
-    // @NonEmptyProperty()
-    // strategies: {name:string,params:unknown}[]
+    @RequiredArrayRef(Strategy)
+    strategies: Strategy[]
     @NonEmptyProperty()
     title:string
     @OptionalProperty()
     body: string | undefined
-    // @NonEmptyProperty()
-    // choices: string[]
+    @RequiredStringArrayOf()
+    choices: string[]
     @NonEmptyProperty()
     start: number
     @NonEmptyProperty()
@@ -119,10 +131,10 @@ export class Proposal {
     state: string
     @OptionalProperty()
     link: string | undefined
-    // @OptionalProperty()
-    // scores: number[] | undefined
+    @OptionalNumberArrayOf()
+    scores: number[] | undefined
     @OptionalProperty()
-    votes: number | undefined
+    votes: number 
 }
 
 export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Proposal> {
@@ -158,7 +170,7 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
     }
 
     protected mapResult(result: Proposals): Array<Proposal> {
-        return result.proposals.map(removeUnsupportedProposalFields())
+        return result.proposals as Array<Proposal>
     }
 
     protected extractCursor(proposals: Proposals) {
@@ -169,21 +181,3 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
 
 export const createSnapshotProposalLoader: (space:string) => SnapshotProposalLoader = (space) =>
     new SnapshotProposalLoader(createGraphQLClient(URL),space);
-
-export function removeUnsupportedProposalFields(): (value: Proposals["proposals"][number]) => Proposal {
-    return (proposal) => ({
-        id: proposal.id,
-        author: proposal.author,
-        created: proposal.created,
-        space: proposal.space?.id,
-        type: proposal.type,
-        title: proposal.title,
-        body: proposal.body,
-        start: proposal.start,
-        end: proposal.end,
-        snapshot: proposal.snapshot,
-        state: proposal.state,
-        link: proposal.link,
-        votes: proposal.votes
-    });
-}
