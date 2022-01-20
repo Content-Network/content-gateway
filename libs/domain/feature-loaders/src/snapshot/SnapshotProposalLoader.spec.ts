@@ -34,12 +34,6 @@ describe("SnapshotProposalLoader",()=>{
             )
         })
     })
-    describe("extractCursor",()=>{
-        it("should successfully extract the timestamp from the last Proposal",()=>{
-
-        })
-    })
-
     describe("Schema",()=>{
         it("should work on the maximum output of the codec", ()=>{
 			pipe(
