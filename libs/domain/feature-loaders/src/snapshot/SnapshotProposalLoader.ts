@@ -1,5 +1,5 @@
 import { createGraphQLClient, GraphQLClient, ProgramError } from "@banklessdao/util-data";
-import { LoadContext, ScheduleMode } from "@shared/util-loaders";
+import { InternalLoadContext, LoadContext, ScheduleMode } from "@shared/util-loaders";
 import { Data, Nested, NonEmptyProperty, OptionalNumberArrayOf, OptionalObjectRef, OptionalProperty, OptionalStringArrayOf, Property, RequiredArrayRef, RequiredStringArrayOf } from "@banklessdao/util-schema";
 import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
@@ -157,8 +157,8 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
     }
 
     protected preLoad(
-        context: LoadContext
-    ): TE.TaskEither<ProgramError, LoadContext> {
+        context: InternalLoadContext
+    ): TE.TaskEither<ProgramError, InternalLoadContext> {
         // Avoid using a string by default
         if (!context.cursor) {
             context.cursor = 0

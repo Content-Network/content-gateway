@@ -19,7 +19,7 @@ export type LoadingResult<T> = {
     /**
      * The cursor that was used to load the records.
      */
-    cursor: string | number;
+    cursor: string;
 };
 
 /**
