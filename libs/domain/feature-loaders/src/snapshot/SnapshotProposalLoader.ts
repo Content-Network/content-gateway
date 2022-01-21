@@ -1,6 +1,6 @@
 import { createGraphQLClient, GraphQLClient, ProgramError } from "@banklessdao/util-data";
-import { InitContext, InternalLoadContext, LoadContext, ScheduleMode } from "@shared/util-loaders";
-import { Data, Nested, NonEmptyProperty, OptionalNumberArrayOf, OptionalObjectRef, OptionalProperty, OptionalStringArrayOf, Property, RequiredArrayRef, RequiredStringArrayOf } from "@banklessdao/util-schema";
+import { InternalLoadContext, ScheduleMode } from "@shared/util-loaders";
+import { Data, Nested, NonEmptyProperty, OptionalNumberArrayOf, OptionalObjectRef, OptionalProperty, RequiredArrayRef, RequiredStringArrayOf } from "@banklessdao/util-schema";
 import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
 import * as t from "io-ts";
@@ -170,7 +170,7 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
         }
 
         this.cursor = context.cursor
-        
+
         return TE.right(context);
     }
 
