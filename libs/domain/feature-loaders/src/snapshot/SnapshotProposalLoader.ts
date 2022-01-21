@@ -1,6 +1,19 @@
-import { createGraphQLClient, GraphQLClient, ProgramError } from "@banklessdao/util-data";
+import {
+    createGraphQLClient,
+    GraphQLClient,
+    ProgramError,
+} from "@banklessdao/util-data";
 import { InternalLoadContext, ScheduleMode } from "@shared/util-loaders";
-import { Data, Nested, NonEmptyProperty, OptionalNumberArrayOf, OptionalObjectRef, OptionalProperty, RequiredArrayRef, RequiredStringArrayOf } from "@banklessdao/util-schema";
+import {
+    Data,
+    Nested,
+    NonEmptyProperty,
+    OptionalNumberArrayOf,
+    OptionalObjectRef,
+    OptionalProperty,
+    RequiredArrayRef,
+    RequiredStringArrayOf,
+} from "@banklessdao/util-schema";
 import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
 import * as t from "io-ts";
@@ -11,8 +24,8 @@ import { withMessage } from "io-ts-types";
 
 export const URL = "https://hub.snapshot.org/graphql";
 
-export const makeQUERY: (space:String)=>DocumentNode = (space) => {
-    space = `"${space}"` // So it gets parsed correctly
+export const makeQUERY: (space: String) => DocumentNode = (space) => {
+    space = `"${space}"`; // So it gets parsed correctly
     return gql`
         query snapshotProposals($limit: Int,$cursor: Int) {
             proposals (
@@ -45,23 +58,30 @@ export const makeQUERY: (space:String)=>DocumentNode = (space) => {
             }
     }
     `;
-}
+};
 
 // Helper for optional fields
-const optional = <T extends t.Mixed>(x:T)=>t.union([x,t.undefined])
+const optional = <T extends t.Mixed>(x: T) => t.union([x, t.undefined]);
 
 export const ProposalCodec = t.strict({
     id: t.string,
     author: t.string,
     created: t.number,
-    space: optional(t.strict({
-        id: t.string,
-        name: t.string
-    })),
+    space: optional(
+        t.strict({
+            id: t.string,
+            name: t.string,
+        })
+    ),
     type: optional(t.string),
-    strategies: withMessage(t.array(t.strict({
-        name:t.string,
-    })),()=>"strategies failed"),
+    strategies: withMessage(
+        t.array(
+            t.strict({
+                name: t.string,
+            })
+        ),
+        () => "strategies failed"
+    ),
     title: t.string,
     body: optional(t.string),
     choices: t.array(t.string),
@@ -71,7 +91,7 @@ export const ProposalCodec = t.strict({
     state: t.string,
     link: optional(t.string),
     scores: optional(t.array(t.number)),
-    votes: optional(t.number)
+    votes: optional(t.number),
 });
 
 export const ProposalsCodec = t.strict({
@@ -88,15 +108,15 @@ const INFO = {
 @Nested()
 class Space {
     @OptionalProperty()
-    name: string
+    name: string;
     @NonEmptyProperty()
-    id: string
+    id: string;
 }
 
 @Nested()
 class Strategy {
     @NonEmptyProperty()
-    name:string
+    name: string;
 }
 
 @Data({
@@ -104,40 +124,43 @@ class Strategy {
 })
 export class Proposal {
     @NonEmptyProperty()
-    id: string
+    id: string;
     @NonEmptyProperty()
-    author: string
+    author: string;
     @NonEmptyProperty()
-    created: number
+    created: number;
     @OptionalObjectRef(Space)
-    space: Space | undefined
+    space: Space | undefined;
     @OptionalProperty()
-    type:string | undefined
+    type: string | undefined;
     @RequiredArrayRef(Strategy)
-    strategies: Strategy[]
+    strategies: Strategy[];
     @NonEmptyProperty()
-    title:string
+    title: string;
     @OptionalProperty()
-    body: string | undefined
+    body: string | undefined;
     @RequiredStringArrayOf()
-    choices: string[]
+    choices: string[];
     @NonEmptyProperty()
-    start: number
+    start: number;
     @NonEmptyProperty()
-    end: number
+    end: number;
     @NonEmptyProperty()
-    snapshot: string
+    snapshot: string;
     @NonEmptyProperty()
-    state: string
+    state: string;
     @OptionalProperty()
-    link: string | undefined
+    link: string | undefined;
     @OptionalNumberArrayOf()
-    scores: number[] | undefined
+    scores: number[] | undefined;
     @OptionalProperty()
-    votes: number 
+    votes: number;
 }
 
-export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Proposal> {
+export class SnapshotProposalLoader extends GraphQLDataLoaderBase<
+    Proposals,
+    Proposal
+> {
     public info = INFO;
 
     protected cursorMode = "cursor" as const;
@@ -153,9 +176,9 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
     protected graphQLQuery: DocumentNode;
     protected codec = ProposalsCodec;
 
-    constructor(client: GraphQLClient,space: String) {
+    constructor(client: GraphQLClient, space: String) {
         super(client);
-        this.graphQLQuery = makeQUERY(space)
+        this.graphQLQuery = makeQUERY(space);
     }
 
     protected preLoad(
@@ -163,25 +186,27 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<Proposals, Pro
     ): TE.TaskEither<ProgramError, InternalLoadContext> {
         // Ensure a number cursor is used
         if (!context.cursor) {
-            context.cursor = 0
+            context.cursor = 0;
         }
         if (typeof context.cursor == "string") {
-            context.cursor = Number(context.cursor)
+            context.cursor = Number(context.cursor);
         }
 
-        this.cursor = context.cursor
+        this.cursor = context.cursor;
 
         return TE.right(context);
     }
 
     protected mapResult(result: Proposals): Array<Proposal> {
-        return result.proposals as Array<Proposal>
+        return result.proposals as Array<Proposal>;
     }
 
     protected extractCursor(proposals: Proposals) {
-        return String(this.cursor+proposals.proposals.length);
+        return String(this.cursor + proposals.proposals.length);
     }
 }
 
-export const createSnapshotProposalLoader: (space:string) => SnapshotProposalLoader = (space) =>
-    new SnapshotProposalLoader(createGraphQLClient(URL),space);
+export const createSnapshotProposalLoader: (
+    space: string
+) => SnapshotProposalLoader = (space) =>
+    new SnapshotProposalLoader(createGraphQLClient(URL), space);
