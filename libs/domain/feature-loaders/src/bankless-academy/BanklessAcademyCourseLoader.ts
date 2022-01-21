@@ -90,13 +90,13 @@ const APISlide = t.union([
         type: t.literal("LEARN"),
         title: withMessage(t.string, () => "Title is required"),
         content: withMessage(t.string, () => "Content is required"),
-        notionId: t.string,
+        notionId: withMessage(t.string, () => "notionId is required"),
     }),
     t.strict({
         type: t.literal("QUIZ"),
         title: withMessage(t.string, () => "Title is required"),
         quiz: withMessage(APIQuiz, () => "Quiz is required"),
-        notionId: t.string,
+        notionId: withMessage(t.string, () => "notionId is required"),
     }),
     t.strict({
         type: t.literal("QUEST"),
