@@ -15,7 +15,6 @@ import {
     RequiredArrayRef,
     RequiredStringArrayOf,
 } from "@banklessdao/util-schema";
-import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
 import * as t from "io-ts";
 import * as E from "fp-ts/lib/Either";
