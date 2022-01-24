@@ -1,6 +1,7 @@
 import {
     createGraphQLClient,
     GraphQLClient,
+    ProgramError,
     UnknownError,
 } from "@banklessdao/util-data";
 import { LoadContext, ScheduleMode } from "@shared/util-loaders";
@@ -18,48 +19,45 @@ import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
 import * as t from "io-ts";
 import * as E from "fp-ts/lib/Either";
+import * as TE from "fp-ts/lib/TaskEither";
 import { GraphQLDataLoaderBase } from "../base/GraphQLDataLoaderBase";
 import { BATCH_SIZE } from "../defaults";
 import { withMessage } from "io-ts-types";
 import { optional } from "@banklessdao/util-data";
+import { TaskEither } from "fp-ts/lib/TaskEither";
 
 export const URL = "https://hub.snapshot.org/graphql";
 
-export const makeQUERY = (space: string): DocumentNode => {
-    space = `"${space}"`; // So it gets parsed correctly
-    return gql`
-        query snapshotProposals($limit: Int,$cursor: Int) {
-            proposals (
-                first: $limit,
-                where: {
-                    space_in: [${space}],
-                },
-                skip:$cursor,
-                orderBy: "created",
-                orderDirection: asc
-            ) {
-                id
-                strategies {
-                    name
-                    params
-                }
-                title
-                body
-                choices
-                created
-                start
-                end
-                snapshot
-                state
-                author
-                space {
-                    id
-                    name
-                }
+export const QUERY = gql`
+    query snapshotProposals($limit: Int, $cursor: Int, $spaces: [String]) {
+        proposals(
+            first: $limit
+            where: { space_in: $spaces }
+            skip: $cursor
+            orderBy: "created"
+            orderDirection: asc
+        ) {
+            id
+            strategies {
+                name
+                params
             }
+            title
+            body
+            choices
+            created
+            start
+            end
+            snapshot
+            state
+            author
+            space {
+                id
+                name
+            }
+        }
     }
-    `;
-};
+`;
 
 export const ProposalCodec = t.strict({
     id: t.string,
@@ -128,15 +126,15 @@ export class Proposal {
     @NonEmptyProperty()
     created: number;
     @OptionalObjectRef(Space)
-    space?: Space ;
+    space?: Space;
     @OptionalProperty()
-    type?: string ;
+    type?: string;
     @RequiredArrayRef(Strategy)
     strategies: Strategy[];
     @NonEmptyProperty()
     title: string;
     @OptionalProperty()
-    body?: string ;
+    body?: string;
     @RequiredStringArrayOf()
     choices: string[];
     @NonEmptyProperty()
@@ -148,9 +146,9 @@ export class Proposal {
     @NonEmptyProperty()
     state: string;
     @OptionalProperty()
-    link?: string ;
+    link?: string;
     @OptionalNumberArrayOf()
-    scores?: number[] ;
+    scores?: number[];
     @OptionalProperty()
     votes: number;
 }
@@ -171,34 +169,53 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<
         [ScheduleMode.INCREMENTAL]: { minutes: 5 },
     };
 
-    protected graphQLQuery: DocumentNode;
+    protected graphQLQuery = QUERY;
     protected codec = ProposalsCodec;
 
-    constructor(client: GraphQLClient, space: string) {
+    protected spaces: string[];
+
+    constructor(client: GraphQLClient, spaces: string[]) {
         super(client);
-        this.graphQLQuery = makeQUERY(space);
+        this.spaces = spaces;
     }
 
     protected mapResult(result: Proposals): Array<Proposal> {
         return result.proposals as Array<Proposal>;
     }
 
-    protected extractCursor(proposals: Proposals) {
+    protected extractCursor = (proposals: Proposals) => {
         return String(this.cursor + proposals.proposals.length);
-    }
+    };
 
-    protected extractQueryContext(context: LoadContext) {
-        return E.tryCatch(
-            ()=> ({
-                ...context,
-                cursor: Number(context.cursor)
-            }),
-            (e)=> new UnknownError(e)
-        )
-    }
+    /**
+     * Safely record the cursor before loading so that we can use it to find the next cursor
+     */
+    protected preLoad = (
+        context: LoadContext
+    ): TaskEither<ProgramError, LoadContext> => {
+        const setCursor = () => {
+            this.cursor = Number(context.cursor);
+            if (isNaN(this.cursor))
+                throw new Error("Failed to convert cursor to number");
+            return context;
+        };
+        return TE.fromEither(E.tryCatch(setCursor, (e) => new UnknownError(e)));
+    };
+
+    /**
+     * Add spaces to context and convert cursor to number
+     */
+    protected extractQueryContext = (context: LoadContext) => {
+        const convertContext = () => ({
+            ...context,
+            cursor: Number(context.cursor),
+            spaces: this.spaces,
+        });
+        return E.tryCatch(convertContext, (e) => new UnknownError(e));
+    };
 }
 
 export const createSnapshotProposalLoader: (
-    space: string
-) => SnapshotProposalLoader = (space) =>
-    new SnapshotProposalLoader(createGraphQLClient(URL), space);
+    spaces: string[]
+) => SnapshotProposalLoader = (spaces) =>
+    new SnapshotProposalLoader(createGraphQLClient(URL), spaces);

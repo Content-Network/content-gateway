@@ -1,8 +1,8 @@
 import {
-    makeQUERY,
     Proposals,
     ProposalsCodec,
     Proposal,
+    QUERY
 } from "./SnapshotProposalLoader";
 import * as E from "fp-ts/Either";
 import { createGraphQLClient } from "@banklessdao/util-data";
@@ -21,10 +21,10 @@ describe("SnapshotProposalLoader", () => {
         });
     });
     describe("GraphQL call", () => {
-        const QUERY = makeQUERY("banklessvault.eth");
         const vars = {
             limit: 10,
             cursor: 0,
+            spaces: ["banklessvault.eth"]
         };
         it("should not fail", async () => {
             const response = await client.query(QUERY, vars, ProposalsCodec)();
