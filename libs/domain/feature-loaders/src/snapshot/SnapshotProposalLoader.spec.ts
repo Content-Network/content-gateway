@@ -66,30 +66,6 @@ describe("SnapshotProposalLoader", () => {
     });
 });
 
-const badProposals = {
-    proposals: [
-        {
-            author: "me",
-            created: 0,
-            strategies: [{ name: "normal" }],
-            title: "test proposal",
-            choices: [],
-            start: 0,
-            end: 1,
-            snapshot: "0",
-            state: "open",
-
-            // Optional members need to be marked undefined for ts
-            space: undefined,
-            type: undefined,
-            body: undefined,
-            link: undefined,
-            scores: undefined,
-            votes: undefined,
-        },
-    ],
-};
-
 // Used for statically testing type
 const minimumProposals: Proposals = {
     proposals: [
