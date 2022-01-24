@@ -1,16 +1,15 @@
 import { notEmpty } from "@banklessdao/util-misc";
-import { ScheduleMode } from "@shared/util-loaders";
+import { ScheduleMode, LoadContext } from "@shared/util-loaders";
 import {
     Data,
     NonEmptyProperty,
     OptionalObjectRef,
     OptionalProperty,
     RequiredArrayRef,
-    RequiredStringArrayOf
+    RequiredStringArrayOf,
 } from "@banklessdao/util-schema";
 import * as t from "io-ts";
 import { withMessage } from "io-ts-types";
-import { LoadContext } from "libs/shared/util-loaders/src/context/LoadContext";
 import { HTTPDataLoaderBase } from "../base/HTTPDataLoaderBase";
 import { BATCH_SIZE } from "../defaults";
 
@@ -35,6 +34,8 @@ class Slide {
     @NonEmptyProperty()
     title: string;
     @OptionalProperty()
+    notionId?: string;
+    @OptionalProperty()
     content?: string;
     @OptionalObjectRef(Quiz)
     quiz?: Quiz;
@@ -51,7 +52,11 @@ class Course {
     @NonEmptyProperty()
     poapImageLink: string;
     @NonEmptyProperty()
+    lessonImageLink: string;
+    @NonEmptyProperty()
     learningActions: string;
+    @NonEmptyProperty()
+    marketingDescription: string;
     @NonEmptyProperty()
     knowledgeRequirements: string;
     @NonEmptyProperty()
@@ -74,29 +79,24 @@ class Course {
     slides: Slide[];
 }
 
-const APIQuiz = t.intersection([
-    t.strict({
-        rightAnswerNumber: t.number,
-        id: t.string,
-    }),
-    t.partial({
-        answer_1: t.string,
-        answer_2: t.string,
-        answer_3: t.string,
-        answer_4: t.string,
-    }),
-]);
+const APIQuiz = t.strict({
+    rightAnswerNumber: t.number,
+    id: t.string,
+    answers: t.array(t.string),
+});
 
 const APISlide = t.union([
     t.strict({
         type: t.literal("LEARN"),
         title: withMessage(t.string, () => "Title is required"),
         content: withMessage(t.string, () => "Content is required"),
+        notionId: withMessage(t.string, () => "notionId is required"),
     }),
     t.strict({
         type: t.literal("QUIZ"),
         title: withMessage(t.string, () => "Title is required"),
         quiz: withMessage(APIQuiz, () => "Quiz is required"),
+        notionId: withMessage(t.string, () => "notionId is required"),
     }),
     t.strict({
         type: t.literal("QUEST"),
@@ -111,7 +111,9 @@ const APISlide = t.union([
 
 const APICourse = t.strict({
     poapImageLink: t.string,
+    lessonImageLink: t.string,
     learningActions: t.string,
+    marketingDescription: t.string,
     knowledgeRequirements: t.string,
     poapEventId: t.number,
     duration: t.number,
@@ -145,7 +147,7 @@ export class BanklessAcademyCourseLoader extends HTTPDataLoaderBase<
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     protected getUrlFor({ limit, cursor }: LoadContext) {
-        return `https://bankless-academy-cg-lab.vercel.app/api/courses`;
+        return "https://app.banklessacademy.com/api/lessons";
     }
 
     protected mapResult(result: APICourses): Array<Course> {
@@ -158,21 +160,18 @@ export class BanklessAcademyCourseLoader extends HTTPDataLoaderBase<
                                 type: slide.type,
                                 title: slide.title,
                                 content: slide.content,
+                                notionId: slide.notionId,
                             };
                         case "QUIZ":
                             return {
                                 type: slide.type,
                                 title: slide.title,
+                                notionId: slide.notionId,
                                 quiz: {
                                     id: slide.quiz.id,
                                     rightAnswerNumber:
                                         slide.quiz.rightAnswerNumber,
-                                    answers: [
-                                        slide.quiz.answer_1,
-                                        slide.quiz.answer_2,
-                                        slide.quiz.answer_3,
-                                        slide.quiz.answer_4,
-                                    ].filter(notEmpty),
+                                    answers: slide.quiz.answers,
                                 },
                             };
                         case "QUEST":
@@ -192,7 +191,9 @@ export class BanklessAcademyCourseLoader extends HTTPDataLoaderBase<
                     return {
                         id: course.notionId,
                         poapImageLink: course.poapImageLink,
+                        lessonImageLink: course.lessonImageLink,
                         learningActions: course.learningActions,
+                        marketingDescription: course.marketingDescription,
                         knowledgeRequirements: course.knowledgeRequirements,
                         poapEventId: course.poapEventId,
                         duration: course.duration,
