@@ -21,6 +21,7 @@ import * as TE from "fp-ts/TaskEither";
 import { GraphQLDataLoaderBase } from "../base/GraphQLDataLoaderBase";
 import { BATCH_SIZE } from "../defaults";
 import { withMessage } from "io-ts-types";
+import { optional } from "@banklessdao/util-data";
 
 export const URL = "https://hub.snapshot.org/graphql";
 
@@ -59,9 +60,6 @@ export const makeQUERY = (space: string): DocumentNode => {
     }
     `;
 };
-
-// Helper for optional fields
-const optional = <T extends t.Mixed>(x: T) => t.union([x, t.undefined]);
 
 export const ProposalCodec = t.strict({
     id: t.string,
