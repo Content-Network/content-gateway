@@ -11,7 +11,6 @@ import {
     DataLoader,
     DEFAULT_CURSOR,
     InitContext,
-    InternalLoadContext,
     JobDescriptor,
     LoadContext,
     SaveContext,
@@ -56,7 +55,7 @@ export abstract class DataLoaderBase<R, M> implements DataLoader<M> {
      * result object.
      */
     protected abstract loadRaw(
-        context: InternalLoadContext
+        context: LoadContext
     ): TE.TaskEither<ProgramError, R>;
 
     // template methods with defaults
@@ -76,8 +75,8 @@ export abstract class DataLoaderBase<R, M> implements DataLoader<M> {
      * of load. Use it to customize loading.
      */
     protected preLoad(
-        context: InternalLoadContext
-    ): TE.TaskEither<ProgramError, InternalLoadContext> {
+        context: LoadContext
+    ): TE.TaskEither<ProgramError, LoadContext> {
         return TE.right(context);
     }
 
@@ -89,7 +88,7 @@ export abstract class DataLoaderBase<R, M> implements DataLoader<M> {
     protected getNextCursor(params: {
         rawResult: R;
         mappedResult: Array<M>;
-        loadContext: InternalLoadContext;
+        loadContext: LoadContext;
     }) {
         const { rawResult, mappedResult, loadContext } = params;
         return mappedResult.length > 0

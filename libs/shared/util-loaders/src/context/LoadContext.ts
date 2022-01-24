@@ -13,12 +13,3 @@ export type LoadContext = {
     limit: number;
 };
 
-/**
- * Broadens the definition of Load context to allow for the temporary use of
- * number cursors. This type should only be used inside of a loader class
- * as a number cursor will cause downstream problems if Prisma get's
- * ahold of it
- */
-export interface InternalLoadContext extends Omit<LoadContext,"cursor"> {
-    cursor?: string | number
-}

@@ -1,9 +1,9 @@
 import {
     createGraphQLClient,
     GraphQLClient,
-    ProgramError,
+    UnknownError,
 } from "@banklessdao/util-data";
-import { InternalLoadContext, ScheduleMode } from "@shared/util-loaders";
+import { LoadContext, ScheduleMode } from "@shared/util-loaders";
 import {
     Data,
     Nested,
@@ -17,7 +17,7 @@ import {
 import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
 import * as t from "io-ts";
-import * as TE from "fp-ts/TaskEither";
+import * as E from "fp-ts/lib/Either";
 import { GraphQLDataLoaderBase } from "../base/GraphQLDataLoaderBase";
 import { BATCH_SIZE } from "../defaults";
 import { withMessage } from "io-ts-types";
@@ -179,28 +179,22 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<
         this.graphQLQuery = makeQUERY(space);
     }
 
-    protected preLoad(
-        context: InternalLoadContext
-    ): TE.TaskEither<ProgramError, InternalLoadContext> {
-        // Ensure a number cursor is used
-        if (!context.cursor) {
-            context.cursor = 0;
-        }
-        if (typeof context.cursor == "string") {
-            context.cursor = Number(context.cursor);
-        }
-
-        this.cursor = context.cursor;
-
-        return TE.right(context);
-    }
-
     protected mapResult(result: Proposals): Array<Proposal> {
         return result.proposals as Array<Proposal>;
     }
 
     protected extractCursor(proposals: Proposals) {
         return String(this.cursor + proposals.proposals.length);
+    }
+
+    protected extractQueryContext(context: LoadContext) {
+        return E.tryCatch(
+            ()=> ({
+                ...context,
+                cursor: Number(context.cursor)
+            }),
+            (e)=> new UnknownError(e)
+        )
     }
 }
 
