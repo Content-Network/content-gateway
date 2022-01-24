@@ -16,7 +16,7 @@ import { BATCH_SIZE } from "../defaults";
 const INFO = {
     namespace: "bankless-academy",
     name: "Course",
-    version: "V1",
+    version: "V2",
 };
 
 class Quiz {
