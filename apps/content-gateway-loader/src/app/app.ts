@@ -33,6 +33,9 @@ export const createApp = async (prisma: PrismaClient) => {
     const GHOST_API_KEY =
         process.env.GHOST_API_KEY ||
         programError("You must specify GHOST_API_KEY");
+    const SNAPSHOT_SPACES =
+        process.env.SNAPSHOT_SPACES?.split(",") ||
+        programError("You must specify SNAPSHOT_SPACES");
     const env =
         process.env.NODE_ENV ?? programError("You must specify NODE_ENV");
 
@@ -52,6 +55,7 @@ export const createApp = async (prisma: PrismaClient) => {
     const loaderRegistry = createLoaderRegistry({
         ghostApiKey: GHOST_API_KEY,
         youtubeApiKey: YOUTUBE_API_KEY,
+        snapshotSpaces: SNAPSHOT_SPACES
     });
     const jobRepository = createJobRepository(prisma);
     const adapter = createHTTPAdapterV1(CGA_URL);
