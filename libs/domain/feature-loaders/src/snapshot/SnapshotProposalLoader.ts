@@ -24,7 +24,7 @@ import { withMessage } from "io-ts-types";
 
 export const URL = "https://hub.snapshot.org/graphql";
 
-export const makeQUERY: (space: String) => DocumentNode = (space) => {
+export const makeQUERY = (space: string): DocumentNode => {
     space = `"${space}"`; // So it gets parsed correctly
     return gql`
         query snapshotProposals($limit: Int,$cursor: Int) {
@@ -130,15 +130,15 @@ export class Proposal {
     @NonEmptyProperty()
     created: number;
     @OptionalObjectRef(Space)
-    space: Space | undefined;
+    space?: Space ;
     @OptionalProperty()
-    type: string | undefined;
+    type?: string ;
     @RequiredArrayRef(Strategy)
     strategies: Strategy[];
     @NonEmptyProperty()
     title: string;
     @OptionalProperty()
-    body: string | undefined;
+    body?: string ;
     @RequiredStringArrayOf()
     choices: string[];
     @NonEmptyProperty()
@@ -150,9 +150,9 @@ export class Proposal {
     @NonEmptyProperty()
     state: string;
     @OptionalProperty()
-    link: string | undefined;
+    link?: string ;
     @OptionalNumberArrayOf()
-    scores: number[] | undefined;
+    scores?: number[] ;
     @OptionalProperty()
     votes: number;
 }
@@ -176,7 +176,7 @@ export class SnapshotProposalLoader extends GraphQLDataLoaderBase<
     protected graphQLQuery: DocumentNode;
     protected codec = ProposalsCodec;
 
-    constructor(client: GraphQLClient, space: String) {
+    constructor(client: GraphQLClient, space: string) {
         super(client);
         this.graphQLQuery = makeQUERY(space);
     }
