@@ -1,13 +1,13 @@
 import { notEmpty } from "@banklessdao/util-misc";
-import { ScheduleMode, LoadContext } from "@shared/util-loaders";
 import {
     Data,
     NonEmptyProperty,
     OptionalObjectRef,
     OptionalProperty,
     RequiredArrayRef,
-    RequiredStringArrayOf,
+    RequiredStringArrayOf
 } from "@banklessdao/util-schema";
+import { LoadContext, ScheduleMode } from "@shared/util-loaders";
 import * as t from "io-ts";
 import { withMessage } from "io-ts-types";
 import { HTTPDataLoaderBase } from "../base/HTTPDataLoaderBase";
@@ -20,6 +20,8 @@ const INFO = {
 };
 
 class Quiz {
+    @NonEmptyProperty()
+    question: string;
     @RequiredStringArrayOf()
     answers: string[];
     @NonEmptyProperty()
@@ -80,6 +82,7 @@ class Course {
 }
 
 const APIQuiz = t.strict({
+    question: t.string,
     rightAnswerNumber: t.number,
     id: t.string,
     answers: t.array(t.string),
@@ -168,6 +171,7 @@ export class BanklessAcademyCourseLoader extends HTTPDataLoaderBase<
                                 title: slide.title,
                                 notionId: slide.notionId,
                                 quiz: {
+                                    question: slide.quiz.question,
                                     id: slide.quiz.id,
                                     rightAnswerNumber:
                                         slide.quiz.rightAnswerNumber,
