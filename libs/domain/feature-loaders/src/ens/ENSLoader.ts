@@ -16,7 +16,7 @@ const QUERY: DocumentNode = gql`
         domains(
             first: $limit
             orderBy: createdAt
-            where: { createdAt_gt: $cursor }
+            where: { createdAt_gte: $cursor }
         ) {
             id
             name

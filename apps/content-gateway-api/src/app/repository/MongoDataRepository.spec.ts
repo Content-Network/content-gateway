@@ -227,7 +227,7 @@ describe("Given a Mongo data storage", () => {
             expect(result).toEqual(
                 new GenericProgramError({
                     _tag: "SchemaValidationError",
-                    message: "Schema validation failed",
+                    message: `Schema validation failed`,
                     details: {
                         validationErrors: [
                             "must have required property 'name'",
