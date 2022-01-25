@@ -93,7 +93,7 @@ export abstract class DataLoaderBase<R, M> implements DataLoader<M> {
         const { rawResult, mappedResult, loadContext } = params;
         return mappedResult.length > 0
             ? this.extractCursor(rawResult)
-            : loadContext.cursor ?? DEFAULT_CURSOR;
+            : loadContext.cursor ? String(loadContext.cursor) : DEFAULT_CURSOR;
     }
 
     // * implementation of the {@link DataLoader} interface. You're not supposed
