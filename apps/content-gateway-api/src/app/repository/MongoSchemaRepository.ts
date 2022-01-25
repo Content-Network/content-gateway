@@ -1,21 +1,20 @@
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+import { CodecValidationError, UnknownError } from "@banklessdao/util-data";
+import {
+    createSchemaFromObject,
+    Schema,
+    SchemaInfo,
+    schemaInfoToString,
+    stringToSchemaInfo,
+} from "@banklessdao/util-schema";
 import {
     DatabaseError,
     RegisteredSchemaIncompatibleError,
     SchemaRegistrationError,
     SchemaRemovalError,
     SchemaRepository,
-    SchemaStat
+    SchemaStat,
 } from "@domain/feature-gateway";
-import { CodecValidationError, UnknownError } from "@banklessdao/util-data";
-import { createLogger } from "@banklessdao/util-misc";
-import {
-    createSchemaFromObject,
-    Schema,
-    SchemaInfo,
-    schemaInfoToString,
-    stringToSchemaInfo
-} from "@banklessdao/util-schema";
 import * as A from "fp-ts/Array";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
@@ -34,7 +33,6 @@ export const createMongoSchemaRepository = async ({
     dbName: string;
     mongoClient: MongoClient;
 }): Promise<SchemaRepository> => {
-    const logger = createLogger("MongoSchemaRepository");
     const db = mongoClient.db(dbName);
     const schemas = db.collection<MongoSchema>(SCHEMAS_COLLECTION_NAME);
 
@@ -158,12 +156,16 @@ export const createMongoSchemaRepository = async ({
             );
         },
         remove: (info: SchemaInfo): TE.TaskEither<SchemaRemovalError, void> => {
+            const collName = schemaInfoToString(info);
             return pipe(
                 wrapDbOperation(() => {
                     return schemas.deleteOne({
-                        key: schemaInfoToString(info),
+                        key: collName,
                     });
                 })(),
+                wrapDbOperation(() => {
+                    return db.dropCollection(collName);
+                }),
                 TE.map(() => undefined)
             );
         },
