@@ -12,7 +12,8 @@ import { Policy } from "./Policy";
 import { Role } from "./Role";
 
 /**
- * Contains authorization information for a set of [[Role]]s.
+ * Contains authorization information (permissions) for a set of [[Role]]s.
+ * The `key` is the **name** of the role.
  */
 export interface Authorization {
     roles: {
@@ -21,7 +22,7 @@ export interface Authorization {
 }
 
 /**
- * This brand makes it sure that [[AuthorizedOperation]]s can only be creted
+ * This brand makes sure that [[AuthorizedOperation]]s can only be created
  * by [[authorize]].
  */
 export interface AuthorizedOperationBrand {

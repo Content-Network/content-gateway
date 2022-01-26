@@ -5,7 +5,7 @@ import { AnyUser } from ".";
  * an [[Operation]].
  *
  * @param user The user that is tyring to execute the operation.
- * @param data The input of the operation.
+ * @param data The input/output of the operation.
  */
 export interface Context<I> {
     user: AnyUser;
