@@ -15,21 +15,26 @@ import {
     Query,
     QueryError,
     SchemaRepository,
-    SinglePayload
+    SinglePayload,
 } from "@domain/feature-gateway";
 import { CodecValidationError } from "@banklessdao/util-data";
 import { coercePrimitive, createLogger } from "@banklessdao/util-misc";
-import { Schema, SchemaInfo, schemaInfoToString } from "@banklessdao/util-schema";
+import {
+    Schema,
+    SchemaInfo,
+    schemaInfoToString,
+} from "@banklessdao/util-schema";
 import * as E from "fp-ts/Either";
 import { absurd, pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
 import * as TO from "fp-ts/TaskOption";
+import * as objectPath from "object-path";
 import {
     Filter as MongoFilter,
     MongoClient,
     ObjectId,
     SortDirection,
-    WithId
+    WithId,
 } from "mongodb";
 import { DocumentData, wrapDbOperation, wrapDbOperationWithParams } from ".";
 
@@ -379,16 +384,20 @@ export const createMongoDataRepository = ({
                     typeof lastRecord !== "undefined" &&
                     entries.length === limit
                 ) {
-                    const lr = lastRecord as WithId<DocumentData>;
+                    const fixedLastRecord = lastRecord as WithId<DocumentData>;
                     const nextCursor: Cursor = {
-                        _id: lr._id.toString(),
+                        _id: fixedLastRecord._id.toString(),
                         dir: dir,
                     };
-                    // TODO: 👇 This won't work with nested fields (eg: a.b)
                     if (orderBy?.fieldPath && orderBy.fieldPath !== "_id") {
                         nextCursor.custom = {
                             fieldPath: `data.${orderBy.fieldPath}`,
-                            value: String(lr.data[orderBy.fieldPath]),
+                            value: String(
+                                objectPath.get(
+                                    fixedLastRecord.data,
+                                    orderBy.fieldPath
+                                )
+                            ),
                         };
                     }
                     result.nextPageToken = encodeCursor(nextCursor);
