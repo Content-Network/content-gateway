@@ -1,9 +1,10 @@
-import { notEmpty } from "@banklessdao/util-misc";
+import { notEmpty, programError } from "@banklessdao/util-misc";
 import {
     LoadContext,
     ScheduleMode,
     DataLoaderBase,
     DEFAULT_CURSOR,
+    DatabaseError,
 } from "@shared/util-loaders";
 import { Data, NonEmptyProperty } from "@banklessdao/util-schema";
 import * as t from "io-ts";
@@ -84,20 +85,25 @@ export class DiscordLoader extends DataLoaderBase<
     }
 
     protected loadRaw(context: LoadContext) {
+        return TE.tryCatch(this.mapDiscordResult(), (err: unknown) => {
+            return new DatabaseError(String(err));
+        });
+    }
 
+    protected mapDiscordResult() {
         const channel = this.client.channels.cache.get(
             this.channelId
         ) as TextChannel;
 
-        return  channel.messages
-            .fetch({ limit: 100 })
-            .then((messages) => {
-                messages.map((message) => {
+        return async () => {
+            const data = await channel.messages.fetch({ limit: 100 });
+            return {messages: data.map((message) => { 
                     message.id, 
                     message.content, 
                     message.createdAt;
-                });
-            });
+                })};
+        };
+
     }
 
     protected mapResult(result: DiscordMessages): Array<DiscordMessage> {
