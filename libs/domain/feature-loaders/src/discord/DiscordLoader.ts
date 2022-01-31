@@ -6,10 +6,13 @@ import {
     DEFAULT_CURSOR,
     DatabaseError,
 } from "@shared/util-loaders";
-import { Data, NonEmptyProperty } from "@banklessdao/util-schema";
+import {
+    Data,
+    NonEmptyProperty,
+    OptionalProperty,
+} from "@banklessdao/util-schema";
 import * as t from "io-ts";
 import { withMessage } from "io-ts-types";
-import { BATCH_SIZE } from "../defaults";
 import { TextChannel, Client, Intents } from "discord.js";
 import * as TE from "fp-ts/lib/TaskEither";
 
@@ -25,8 +28,8 @@ const INFO = {
 class DiscordMessage {
     @NonEmptyProperty()
     id: string;
-    @NonEmptyProperty()
-    content: string;
+    @OptionalProperty()
+    content?: string;
     @NonEmptyProperty()
     createdAt: string;
 }
@@ -52,7 +55,8 @@ export class DiscordLoader extends DataLoaderBase<
 > {
     public info = INFO;
 
-    protected batchSize = BATCH_SIZE;
+    // Discord doesn't allow 1000 here
+    protected batchSize = 100;
     protected type = DiscordMessage;
     protected cadenceConfig = {
         [ScheduleMode.BACKFILL]: { seconds: 5 },
@@ -79,32 +83,42 @@ export class DiscordLoader extends DataLoaderBase<
 
         // Create a new client instance
         // Login to Discord with your client's token
+        // TODO we could wait for the ready - but it should be ready quickly, most probably before the loader
+        // TODO in general - could add some discord error handling
         this.client.login(token);
     }
 
+    // TODO create a new loader base? -> check "await" TODO below as well
     protected loadRaw(context: LoadContext) {
-        return TE.tryCatch(this.mapDiscordResult(), (err: unknown) => {
-            return new DatabaseError(String(err));
-        });
+        return TE.tryCatch(
+            this.mapDiscordResult(context.cursor),
+            (err: unknown) => {
+                return new DatabaseError(String(err));
+            }
+        );
     }
 
-    protected mapDiscordResult() {
+    protected mapDiscordResult(cursor?: string) {
         const channel = this.client.channels.cache.get(
             this.channelId
         ) as TextChannel;
 
-        // TODO do we need to await this here at all?
+        // TODO do we need to await this here at all? 
+        // TODO Check error handling
+        // TODO -> do we want to map here already? Or pass the discord message type as raw data ?
         return async () => {
-            const data = await channel.messages.fetch({ limit: 100 });
-            return {messages: data.map(m => ({ 
-                    id: m.id, 
-                    content: m.content, 
-                    createdAt: m.createdAt.toString(),}
-            ))};
-
-             
+            const data = await channel.messages.fetch({
+                limit: this.batchSize,
+                after: cursor,
+            });
+            return {
+                messages: data.map((m) => ({
+                    id: m.id,
+                    content: m.content,
+                    createdAt: m.createdAt.toString(),
+                })),
+            };
         };
-
     }
 
     protected mapResult(result: DiscordMessages): Array<DiscordMessage> {
@@ -129,10 +143,12 @@ export class DiscordLoader extends DataLoaderBase<
     }
 
     protected extractCursor(result: DiscordMessages) {
+        let cursor: string = DEFAULT_CURSOR;
+
         if (result.messages.length > 0) {
-            return result.messages[length - 1].createdAt;
+            cursor = result.messages[result.messages.length - 1].id;
         }
-        return DEFAULT_CURSOR;
+        return cursor;
     }
 }
 
