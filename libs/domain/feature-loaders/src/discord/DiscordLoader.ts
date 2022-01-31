@@ -1,4 +1,4 @@
-import { notEmpty, programError } from "@banklessdao/util-misc";
+import { notEmpty } from "@banklessdao/util-misc";
 import {
     LoadContext,
     ScheduleMode,
@@ -10,9 +10,7 @@ import { Data, NonEmptyProperty } from "@banklessdao/util-schema";
 import * as t from "io-ts";
 import { withMessage } from "io-ts-types";
 import { BATCH_SIZE } from "../defaults";
-import { pipe } from "fp-ts/lib/function";
 import { TextChannel, Client, Intents } from "discord.js";
-import { map } from "fp-ts/lib/Functor";
 import * as TE from "fp-ts/lib/TaskEither";
 
 const INFO = {
@@ -95,13 +93,16 @@ export class DiscordLoader extends DataLoaderBase<
             this.channelId
         ) as TextChannel;
 
+        // TODO do we need to await this here at all?
         return async () => {
             const data = await channel.messages.fetch({ limit: 100 });
-            return {messages: data.map((message) => { 
-                    message.id, 
-                    message.content, 
-                    message.createdAt;
-                })};
+            return {messages: data.map(m => ({ 
+                    id: m.id, 
+                    content: m.content, 
+                    createdAt: m.createdAt.toString(),}
+            ))};
+
+             
         };
 
     }
