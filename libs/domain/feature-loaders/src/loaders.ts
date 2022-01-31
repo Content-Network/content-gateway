@@ -37,6 +37,6 @@ export const createLoaders = (apiKeys: LoadersConfig) =>
         createPOAPTokenLoader(),
         createPOAPAccountLoader(),
         createPOAPTransferLoader(),
-        createSnapshotProposalLoader(["banklessvault.eth"]), // TODO: remove magic string
+        createSnapshotProposalLoader(apiKeys.snapshotSpaces),
         createENSDomainLoader(),
     ] as DataLoader<unknown>[];
