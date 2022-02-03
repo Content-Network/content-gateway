@@ -1,3 +1,10 @@
+import { CodecValidationError } from "@banklessdao/util-data";
+import { coercePrimitive, createLogger } from "@banklessdao/util-misc";
+import {
+    Schema,
+    SchemaInfo,
+    schemaInfoToString,
+} from "@banklessdao/util-schema";
 import {
     Cursor,
     DatabaseError,
@@ -15,11 +22,8 @@ import {
     Query,
     QueryError,
     SchemaRepository,
-    SinglePayload
+    SinglePayload,
 } from "@domain/feature-gateway";
-import { CodecValidationError } from "@banklessdao/util-data";
-import { coercePrimitive, createLogger } from "@banklessdao/util-misc";
-import { Schema, SchemaInfo, schemaInfoToString } from "@banklessdao/util-schema";
 import * as E from "fp-ts/Either";
 import { absurd, pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
@@ -29,53 +33,23 @@ import {
     MongoClient,
     ObjectId,
     SortDirection,
-    WithId
+    WithId,
 } from "mongodb";
 import { DocumentData, wrapDbOperation, wrapDbOperationWithParams } from ".";
+
+type Deps = {
+    dbName: string;
+    mongoClient: MongoClient;
+    schemaRepository: SchemaRepository;
+};
 
 export const createMongoDataRepository = ({
     dbName,
     mongoClient,
     schemaRepository,
-}: {
-    dbName: string;
-    mongoClient: MongoClient;
-    schemaRepository: SchemaRepository;
-}): DataRepository => {
+}: Deps): DataRepository => {
     const db = mongoClient.db(dbName);
     const logger = createLogger("MongoDataRepository");
-
-    const upsertData = (
-        data: SinglePayload
-    ): TE.TaskEither<DatabaseError, void> => {
-        const { info, record } = data;
-        const key = schemaInfoToString(info);
-        const collection = db.collection<DocumentData>(key);
-        const id = record.id as string;
-        return pipe(
-            wrapDbOperation(() =>
-                collection.updateOne(
-                    { id },
-                    {
-                        $set: {
-                            data: record,
-                            updatedAt: new Date(),
-                        },
-                        $setOnInsert: {
-                            id: id,
-                            createdAt: new Date(),
-                        },
-                    },
-                    {
-                        upsert: true,
-                    }
-                )
-            )(),
-            TE.map(() => {
-                return undefined;
-            })
-        );
-    };
 
     const validateRecords =
         (records: Record<string, unknown>[]) => (schema: Schema) => {
@@ -90,19 +64,6 @@ export const createMongoDataRepository = ({
         };
 
     const store = (
-        payload: SinglePayload
-    ): TE.TaskEither<DataStorageError, void> => {
-        const { info, record } = payload;
-        return pipe(
-            schemaRepository.find(info),
-            TE.fromTaskOption(() => new MissingSchemaError(info)),
-            TE.chainW(validateRecords([record])),
-            TE.chainW(() => upsertData(payload)),
-            TE.map(() => undefined)
-        );
-    };
-
-    const storeBulk = (
         listPayload: ListPayload
     ): TE.TaskEither<DataStorageError, void> => {
         const { info, records } = listPayload;
@@ -400,7 +361,6 @@ export const createMongoDataRepository = ({
 
     return {
         store,
-        storeBulk,
         findById,
         findByQuery,
     };

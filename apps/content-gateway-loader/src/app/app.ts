@@ -2,9 +2,10 @@ import {
     createContentGatewayClientV1,
     createHTTPAdapterV1
 } from "@banklessdao/content-gateway-sdk";
+import { createLogger, programError } from "@banklessdao/util-misc";
+import { schemaInfoToString } from "@banklessdao/util-schema";
 import { PrismaClient } from "@cgl/prisma";
 import { createLoaderRegistry } from "@domain/feature-loaders";
-import { createLogger, programError } from "@banklessdao/util-misc";
 import {
     createJobScheduler,
     DEFAULT_CURSOR,
@@ -12,7 +13,6 @@ import {
     Job,
     ScheduleMode
 } from "@shared/util-loaders";
-import { schemaInfoToString } from "@banklessdao/util-schema";
 import * as bodyParser from "body-parser";
 import * as express from "express";
 import * as E from "fp-ts/Either";
@@ -25,6 +25,8 @@ import { join } from "path";
 import { createJobRepository } from "../repository/PrismaJobRepository";
 
 export const createApp = async (prisma: PrismaClient) => {
+    const CGA_API_KEY =
+        process.env.CGA_API_KEY || programError("You must specify CGA_API_KEY");
     const CGA_URL =
         process.env.CGA_URL || programError("You must specify CGA_URL");
     const YOUTUBE_API_KEY =
@@ -55,13 +57,15 @@ export const createApp = async (prisma: PrismaClient) => {
     const loaderRegistry = createLoaderRegistry({
         ghostApiKey: GHOST_API_KEY,
         youtubeApiKey: YOUTUBE_API_KEY,
-        snapshotSpaces: SNAPSHOT_SPACES
+        snapshotSpaces: SNAPSHOT_SPACES,
     });
     const jobRepository = createJobRepository(prisma);
-    const adapter = createHTTPAdapterV1(CGA_URL);
+    const adapter = createHTTPAdapterV1({
+        apiURL: CGA_URL,
+        apiKey: CGA_API_KEY,
+    });
 
     const contentGatewayClient = createContentGatewayClientV1({
-        apiKey: "",
         adapter: adapter,
     });
 

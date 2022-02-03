@@ -13,7 +13,7 @@ import { Policy } from "./Policy";
  */
 export interface Permission<I, O> {
     name: string;
-    operation: Operation<I, O>;
+    operationName: string;
     policies: Policy<I>[];
     filters?: Filter<O>[];
 }
@@ -29,6 +29,6 @@ export const getPermissionFilterFor =
     <I, O>(operation: Operation<I, O>) =>
     (permissions: AnyPermission[]): Permission<I, O>[] => {
         return permissions.filter(
-            (permission) => permission.operation === operation
+            (permission) => permission.operationName === operation.name
         );
     };

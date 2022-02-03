@@ -1,23 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-    ContentGatewayClientV1,
-    createContentGatewayClientV1,
-} from "@banklessdao/content-gateway-sdk";
+import { createLogger, programError } from "@banklessdao/util-misc";
 import {
     ContentGateway,
     createContentGateway,
     DataRepository,
+    UserRepository,
 } from "@domain/feature-gateway";
-import { createLogger, programError } from "@banklessdao/util-misc";
 import * as express from "express";
 import { graphqlHTTP } from "express-graphql";
 import * as g from "graphql";
 import { MongoClient } from "mongodb";
 import { join } from "path";
-import { Logger } from "tslog";
 import {
-    createGraphQLAPIV1 as createGraphQLAPIV1,
-    createInMemoryOutboundDataAdapter,
+    authorization,
+    createGraphQLAPIV1,
+    createMongoUserRepository,
     ObservableSchemaRepository,
     toObservableSchemaRepository,
 } from ".";
@@ -27,17 +24,15 @@ import { LiveLoader } from "./live-loaders/LiveLoader";
 import { generateContentGatewayAPIV1 } from "./service";
 
 export type ApplicationContext = {
-    logger: Logger;
-    env: string;
-    isDev: boolean;
-    isProd: boolean;
     app: express.Application;
-    mongoClient: MongoClient;
     schemaRepository: ObservableSchemaRepository;
+    userRepository: UserRepository;
     dataRepository: DataRepository;
     contentGateway: ContentGateway;
-    client: ContentGatewayClientV1;
 };
+
+export const SCHEMAS_COLLECTION_NAME = "schemas";
+export const USERS_COLLECTION_NAME = "users";
 
 export const createApp = async ({
     dbName,
@@ -47,11 +42,8 @@ export const createApp = async ({
     mongoClient: MongoClient;
 }) => {
     const env = process.env.NODE_ENV ?? programError("NODE_ENV not set");
-    const isDev = env === "development";
-    const isProd = env === "production";
     const resetDb = process.env.RESET_DB === "true";
     const addFrontend = process.env.ADD_FRONTEND === "true";
-
     const logger = createLogger("ContentGatewayAPIApp");
 
     if (resetDb) {
@@ -60,37 +52,40 @@ export const createApp = async ({
     logger.info(`Running in ${env} mode`);
 
     const app = express();
+
     const schemaRepository = toObservableSchemaRepository(
-        await createMongoSchemaRepository({ dbName, mongoClient })
+        await createMongoSchemaRepository({
+            dbName,
+            collName: SCHEMAS_COLLECTION_NAME,
+            mongoClient,
+        })
     );
+
     const dataRepository = createMongoDataRepository({
         dbName,
         mongoClient,
         schemaRepository,
     });
 
-    const contentGateway = createContentGateway({
-        schemaRepository,
-        dataRepository,
+    const userRepository = await createMongoUserRepository({
+        dbName,
+        collName: USERS_COLLECTION_NAME,
+        mongoClient,
     });
-    const client = createContentGatewayClientV1({
-        apiKey: "",
-        adapter: createInMemoryOutboundDataAdapter({
-            contentGateway,
-        }),
+
+    const contentGateway = createContentGateway({
+        dataRepository,
+        userRepository,
+        schemaRepository,
+        authorization,
     });
 
     const context: ApplicationContext = {
-        logger,
-        env,
-        isDev,
-        isProd,
         app,
-        mongoClient,
         schemaRepository,
         dataRepository,
+        userRepository,
         contentGateway,
-        client,
     };
 
     app.use("/api/v1/rest/", await generateContentGatewayAPIV1(context));
@@ -103,7 +98,7 @@ export const createApp = async ({
     );
 
     const clientBuildPath = join(__dirname, "../content-gateway-api-frontend");
-    if (addFrontend || isProd) {
+    if (addFrontend) {
         app.use(express.static(clientBuildPath));
         app.get("*", (_, response) => {
             response.sendFile(join(clientBuildPath, "index.html"));

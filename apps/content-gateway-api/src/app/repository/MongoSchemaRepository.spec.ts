@@ -1,5 +1,4 @@
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
-import { SchemaRepository } from "@domain/feature-gateway";
 import { extractRight, programError } from "@banklessdao/util-misc";
 import {
     ClassType,
@@ -10,11 +9,12 @@ import {
     Schema,
     schemaInfoToString
 } from "@banklessdao/util-schema";
+import { ContentGatewayUser, SchemaRepository } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
 import * as O from "fp-ts/Option";
-import { Db, MongoClient } from "mongodb";
+import { Collection, Db, MongoClient } from "mongodb";
 import { v4 as uuid } from "uuid";
-import { createMongoSchemaRepository } from ".";
+import { createMongoSchemaRepository, MongoSchema } from ".";
 
 const userInfo = {
     namespace: "test",
@@ -71,20 +71,32 @@ describe("Given a Mongo schema storage", () => {
     let target: SchemaRepository;
     let mongoClient: MongoClient;
     let db: Db;
+    let schemas: Collection<MongoSchema>;
+
+    const user: ContentGatewayUser = {
+        id: uuid(),
+        name: "test",
+        apiKeys: [],
+        roles: [],
+    };
+    const collName = uuid();
 
     beforeAll(async () => {
         mongoClient = new MongoClient(url);
         db = mongoClient.db(dbName);
+        schemas = db.collection<MongoSchema>(collName);
+
         await mongoClient.connect();
 
         target = await createMongoSchemaRepository({
             dbName,
+            collName,
             mongoClient,
         });
     });
 
     afterAll(async () => {
-        await db.dropDatabase();
+        await schemas.drop();
         await mongoClient.close();
     });
 
@@ -92,7 +104,10 @@ describe("Given a Mongo schema storage", () => {
         it("Then it is successfully created when valid", async () => {
             const version = uuid();
 
-            const result = await target.register(createSchema(User, version))();
+            const result = await target.register(
+                createSchema(User, version),
+                user
+            )();
 
             expect(result).toEqual(E.right(undefined));
         });
@@ -102,9 +117,9 @@ describe("Given a Mongo schema storage", () => {
             const oldSchema = createSchema(User, version);
             const newSchema = createSchema(IncompatibleUser, version);
 
-            await target.register(oldSchema)();
+            await target.register(oldSchema, user)();
 
-            const result = await target.register(newSchema)();
+            const result = await target.register(newSchema, user)();
 
             const info = schemaInfoToString({ ...userInfo, version: version });
 
@@ -125,9 +140,9 @@ describe("Given a Mongo schema storage", () => {
                 version
             );
 
-            await target.register(userSchema)();
+            await target.register(userSchema, user)();
 
-            const result = await target.register(compatibleSchema)();
+            const result = await target.register(compatibleSchema, user)();
 
             expect(result).toEqual(E.right(undefined));
         });
@@ -135,7 +150,7 @@ describe("Given a Mongo schema storage", () => {
         it("Then it returns the proper schema When we try to find it", async () => {
             const version = uuid();
             const schema = createSchema(User, version);
-            await target.register(schema)();
+            await target.register(schema, user)();
 
             const result = (
                 (await target.find(schema.info)()) as O.Some<Schema>

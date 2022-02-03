@@ -3,7 +3,7 @@ import * as A from "fp-ts/Array";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import { AnyUser } from ".";
-import {Context} from "./Context";
+import { Context } from "./Context";
 import { AuthorizationError } from "./errors";
 import { Filter } from "./Filter";
 import { Operation } from "./Operation";
@@ -29,6 +29,8 @@ export interface AuthorizedOperationBrand {
     readonly _: unique symbol;
 }
 
+export type ContextTaskEither<T> = TE.TaskEither<ProgramError, Context<T>>;
+
 /**
  * An [[AuthorizedOperation]] is a [[Operation]] that has been authorized
  * with an [[Authorization]] object. It is safe to call from a security
@@ -49,21 +51,21 @@ export interface AuthorizedOperationBrand {
  * ```
  */
 export type AuthorizedOperation<I, O> = (
-    input: TE.TaskEither<ProgramError, Context<I>>
-) => TE.TaskEither<ProgramError, Context<O>> & AuthorizedOperationBrand;
+    input: ContextTaskEither<I>
+) => ContextTaskEither<O> & AuthorizedOperationBrand;
 
 /**
  * Takes an [[Operation]] and augments it with authorization information.
  */
-export const authorize = <I, O>(
+export const authorize = <I, O, E extends ProgramError>(
     operation: Operation<I, O>,
     authorization: Authorization
 ): AuthorizedOperation<I, O> => {
-    return ((input: TE.TaskEither<ProgramError, Context<I>>) => {
+    return ((input: TE.TaskEither<E, Context<I>>) => {
         return pipe(
             input,
             TE.chainW((context: Context<I>) => {
-                const { user } = context;
+                const { currentUser: user } = context;
                 const roles = authorization.roles;
 
                 const permissions = pipe(
@@ -110,13 +112,12 @@ const evaluatePolicies = <I>(context: Context<I>) =>
     );
 
 const executeOperation = <I, O>(operation: Operation<I, O>, user: AnyUser) =>
-    TE.chain((c: Context<I>) =>
+    TE.chain((context: Context<I>) =>
         pipe(
-            c.data,
-            operation,
+            operation.execute(context.data),
             TE.map((output: O) => {
                 return {
-                    user: user,
+                    currentUser: user,
                     data: output,
                 };
             })

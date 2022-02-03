@@ -1,24 +1,26 @@
+import { extractRight } from "@banklessdao/util-misc";
+import {
+    createSchemaFromClass,
+    Data,
+    Nested,
+    NonEmptyProperty,
+    RequiredObjectRef
+} from "@banklessdao/util-schema";
 import {
     ContentGateway,
     createContentGateway,
     createDataRepositoryStub,
     createSchemaRepositoryStub,
     DataRepositoryStub,
-    SchemaRepositoryStub
+    SchemaEntity,
+    SchemaRepositoryStub,
+    UserRepository
 } from "@domain/feature-gateway";
-import { extractRight } from "@banklessdao/util-misc";
 import { DEFAULT_CURSOR } from "@shared/util-loaders";
-import {
-    createSchemaFromClass,
-    Data,
-    Nested,
-    NonEmptyProperty,
-    RequiredObjectRef,
-    Schema
-} from "@banklessdao/util-schema";
 import * as express from "express";
 import * as request from "supertest";
 import { v4 as uuid } from "uuid";
+import { authorization } from "../../..";
 import { generateContentGatewayAPIV1 } from "./ContentGatewayAPI";
 
 const userInfo = {
@@ -61,7 +63,8 @@ describe("Given a content gateway api", () => {
     let gateway: ContentGateway;
     let dataRepositoryStub: DataRepositoryStub;
     let schemaRepositoryStub: SchemaRepositoryStub;
-    let schemas: Map<string, Schema>;
+    let userRepositoryStub: UserRepository;
+    let schemas: Map<string, SchemaEntity>;
 
     beforeEach(async () => {
         app = express();
@@ -71,11 +74,14 @@ describe("Given a content gateway api", () => {
         gateway = createContentGateway({
             schemaRepository: schemaRepositoryStub,
             dataRepository: dataRepositoryStub,
+            userRepository: userRepositoryStub,
+            authorization: authorization,
         });
         app.use(
             "/",
             await generateContentGatewayAPIV1({
-                app: app,
+                app,
+                userRepository: userRepositoryStub,
                 contentGateway: gateway,
             })
         );

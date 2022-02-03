@@ -7,5 +7,7 @@ import * as TE from "fp-ts/lib/TaskEither";
  * [[ProgramError]] object, success is represented by an arbitrary object
  * of type `O`.
  */
-export type Operation<I, O> = (input: I) => TE.TaskEither<ProgramError, O>;
-
+export type Operation<I, O> = {
+    name: string;
+    execute: (input: I) => TE.TaskEither<ProgramError, O>;
+};

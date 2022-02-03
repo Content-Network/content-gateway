@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
     CodecValidationError,
-    mapCodecValidationError
+    mapCodecValidationError,
 } from "@banklessdao/util-data";
 import { base64Decode, base64Encode } from "@banklessdao/util-misc";
 import { SchemaInfo, schemaInfoToString } from "@banklessdao/util-schema";
@@ -121,10 +121,7 @@ export type QueryError = CodecValidationError | DatabaseError;
  * It is responsible for storing the data received from the SDK.
  */
 export type DataRepository = {
-    store: (entry: SinglePayload) => TE.TaskEither<DataStorageError, void>;
-    storeBulk: (
-        entryList: ListPayload
-    ) => TE.TaskEither<DataStorageError, void>;
+    store: (entryList: ListPayload) => TE.TaskEither<DataStorageError, void>;
     findById: (info: SchemaInfo, id: string) => TO.TaskOption<Entry>;
     findByQuery: (query: Query) => TE.TaskEither<QueryError, EntryList>;
 };
@@ -162,8 +159,7 @@ export const createDataRepositoryStub = (
 
     return {
         storage: map,
-        store: store,
-        storeBulk: (
+        store: (
             listPayload: ListPayload
         ): TE.TaskEither<DataStorageError, void> => {
             const { info, records } = listPayload;

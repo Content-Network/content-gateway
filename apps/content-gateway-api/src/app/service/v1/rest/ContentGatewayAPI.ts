@@ -1,7 +1,5 @@
-import { ContentGateway } from "@domain/feature-gateway";
 import {
     jsonBatchPayloadCodec,
-    jsonPayloadCodec,
     mapCodecValidationError,
     ProgramError,
     programErrorCodec,
@@ -9,17 +7,27 @@ import {
 } from "@banklessdao/util-data";
 import { createLogger } from "@banklessdao/util-misc";
 import { createSchemaFromObject } from "@banklessdao/util-schema";
+import {
+    ContentGateway,
+    ContentGatewayUser,
+    UserNotFoundError,
+    UserRepository,
+} from "@domain/feature-gateway";
+import * as bcrypt from "bcrypt";
 import * as express from "express";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
 import * as T from "fp-ts/lib/Task";
 import * as TE from "fp-ts/lib/TaskEither";
+import * as t from "io-ts";
+import { ANON_USER } from "../../..";
 
 const logger = createLogger("ContentGatewayAPI");
 
 type Deps = {
-    contentGateway: ContentGateway;
     app: express.Application;
+    userRepository: UserRepository;
+    contentGateway: ContentGateway;
 };
 
 /**
@@ -27,8 +35,9 @@ type Deps = {
  * by the Content Gateway Client
  */
 export const generateContentGatewayAPIV1 = async ({
-    contentGateway,
     app,
+    userRepository,
+    contentGateway,
 }: Deps) => {
     app.use(
         express.json({
@@ -39,25 +48,72 @@ export const generateContentGatewayAPIV1 = async ({
 
     const router = express.Router();
 
-    router.get("/schema/stats", async (_, res) => {
+    const extractUser = (
+        req: express.Request
+    ): TE.TaskEither<ProgramError, ContentGatewayUser> => {
+        const secret = req.header("X-Api-Key");
+        const error = new UserNotFoundError(
+            "User not found for the given API key"
+        );
+        if (!secret) {
+            return TE.of(ANON_USER);
+        } else {
+            return pipe(
+                Buffer.from(secret, "base64").toString(),
+                (key) => TE.fromTask(() => bcrypt.hash(key, 10)),
+                TE.mapLeft(() => error),
+                TE.chain(userRepository.findByApiKeyHash),
+                TE.orElse(() => TE.right(ANON_USER))
+            );
+        }
+    };
+
+    const extractBody = <T>(
+        req: express.Request,
+        codec: t.Type<T>
+    ): TE.TaskEither<ProgramError, T> => {
+        return pipe(
+            codec.decode(req.body),
+            mapCodecValidationError("Validating json payload failed"),
+            TE.fromEither
+        );
+    };
+
+    router.get("/schema/stats", async (req, res) => {
         await pipe(
-            contentGateway.loadStats(),
-            TE.fromTask,
+            extractUser(req),
+            TE.map((currentUser) => ({
+                currentUser,
+                data: undefined,
+            })),
+            contentGateway.loadSchemaStats,
             sendResponse(res, "Schema stats")
         )();
     });
 
     router.post("/schema/", async (req, res) => {
         await pipe(
-            createSchemaFromObject(req.body),
-            TE.fromEither,
-            TE.chainW(contentGateway.register),
-            TE.map(() => ({})),
+            TE.Do,
+            TE.bind("currentUser", () => extractUser(req)),
+            TE.bindW("schema", () =>
+                TE.fromEither(createSchemaFromObject(req.body))
+            ),
+            TE.map(({ currentUser, schema }) => ({
+                currentUser,
+                data: {
+                    schema: schema,
+                    // * 👇 We can register for another user in the future
+                    owner: currentUser,
+                },
+            })),
+            contentGateway.registerSchema,
             sendResponse(res, "Schema registration")
         )();
     });
 
     router.delete("/schema/", async (req, res) => {
+        // TODO: move this outer pipe into a function
+        // TODO: do status reporting in sendResponse only based on the error type (400 vs 500)
         pipe(
             schemaInfoCodec.decode(req.body),
             E.fold(
@@ -68,9 +124,14 @@ export const generateContentGatewayAPIV1 = async ({
                         )
                     );
                 },
-                (params) => {
+                (schemaInfo) => {
                     return pipe(
-                        contentGateway.remove(params),
+                        extractUser(req),
+                        TE.map((currentUser) => ({
+                            currentUser,
+                            data: schemaInfo,
+                        })),
+                        contentGateway.removeSchema,
                         sendResponse(res, "Remove schema")
                     )();
                 }
@@ -80,24 +141,21 @@ export const generateContentGatewayAPIV1 = async ({
 
     router.post("/data/receive", async (req, res) => {
         return pipe(
-            jsonPayloadCodec.decode(req.body),
-            mapCodecValidationError("Validating json payload failed"),
-            TE.fromEither,
-            TE.chainW(contentGateway.receive),
-            TE.map(() => ({})),
+            TE.Do,
+            // 👇 we can skip the context mapping phase as these two form a context
+            TE.bind("currentUser", () => extractUser(req)),
+            TE.bindW("payload", () => extractBody(req, jsonBatchPayloadCodec)),
+            TE.map(({ currentUser, payload }) => {
+                return {
+                    currentUser,
+                    data: {
+                        info: payload.info,
+                        records: payload.data,
+                    },
+                };
+            }),
+            contentGateway.saveData,
             sendResponse(res, "Payload receiving ")
-        )();
-    });
-
-    router.post("/data/receive-batch", async (req, res) => {
-        logger.info("Receiving batch...");
-        await pipe(
-            jsonBatchPayloadCodec.decode(req.body),
-            mapCodecValidationError("Validating json payload failed"),
-            TE.fromEither,
-            TE.chainW(contentGateway.receiveBatch),
-            TE.map(() => ({})),
-            sendResponse(res, "Batch payload receiving")
         )();
     });
 

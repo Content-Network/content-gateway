@@ -71,3 +71,57 @@ export class SchemaCreationFailedError extends ProgramErrorBase<"SchemaCreationF
         });
     }
 }
+
+export class UserCreationError extends ProgramErrorBase<"UserCreationError"> {
+    constructor(message: string) {
+        super({
+            _tag: "UserCreationError",
+            message: message,
+        });
+    }
+}
+
+export class UserUpdateError extends ProgramErrorBase<"UserUpdateError"> {
+    constructor(message: string) {
+        super({
+            _tag: "UserUpdateError",
+            message: message,
+        });
+    }
+}
+
+export class UserDeletionError extends ProgramErrorBase<"UserDeletionError"> {
+    constructor(message: string) {
+        super({
+            _tag: "UserDeletionError",
+            message: message,
+        });
+    }
+}
+
+export class UserNotFoundError extends ProgramErrorBase<"UserNotFoundError"> {
+    constructor(message: string) {
+        super({
+            _tag: "UserNotFoundError",
+            message: message,
+        });
+    }
+}
+
+export class APIKeyCreationError extends ProgramErrorBase<"APIKeyCreationError"> {
+    constructor(message: string) {
+        super({
+            _tag: "APIKeyCreationError",
+            message: message,
+        });
+    }
+}
+
+export class APIKeyDeletionError extends ProgramErrorBase<"APIKeyDeletionError"> {
+    constructor(message: string) {
+        super({
+            _tag: "APIKeyDeletionError",
+            message: message,
+        });
+    }
+}
