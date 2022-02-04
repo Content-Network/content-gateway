@@ -3,11 +3,10 @@ import { coercePrimitive, createLogger } from "@banklessdao/util-misc";
 import {
     Schema,
     SchemaInfo,
-    schemaInfoToString,
+    schemaInfoToString
 } from "@banklessdao/util-schema";
 import {
     Cursor,
-    DatabaseError,
     DataRepository,
     DataStorageError,
     decodeCursor,
@@ -15,14 +14,11 @@ import {
     Entry,
     EntryList,
     Filter,
-    ListPayload,
-    MissingSchemaError,
-    OrderBy,
+    ListPayload, OrderBy,
     OrderDirection,
     Query,
     QueryError,
-    SchemaRepository,
-    SinglePayload,
+    SchemaRepository
 } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
 import { absurd, pipe } from "fp-ts/lib/function";
@@ -33,7 +29,7 @@ import {
     MongoClient,
     ObjectId,
     SortDirection,
-    WithId,
+    WithId
 } from "mongodb";
 import { DocumentData, wrapDbOperation, wrapDbOperationWithParams } from ".";
 
@@ -74,7 +70,6 @@ export const createMongoDataRepository = ({
         const collection = db.collection<DocumentData>(key);
         return pipe(
             schemaRepository.find(info),
-            TE.fromTaskOption(() => new MissingSchemaError(info)),
             TE.chainW(validateRecords(records)),
             TE.map((recordList) => {
                 return recordList.map((record) => {

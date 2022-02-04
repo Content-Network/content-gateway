@@ -152,11 +152,13 @@ describe("Given a gateway client", () => {
         expect(adapterStub.payloads).toEqual([
             {
                 info: { namespace: "test", name: "Post", version: "V1" },
-                data: {
-                    id: "1",
-                    content: "Hello World",
-                    comments: [{ text: "Hello" }, { text: "World" }],
-                },
+                data: [
+                    {
+                        id: "1",
+                        content: "Hello World",
+                        comments: [{ text: "Hello" }, { text: "World" }],
+                    },
+                ],
             },
         ]);
     });

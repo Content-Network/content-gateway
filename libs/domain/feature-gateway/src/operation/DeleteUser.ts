@@ -1,10 +1,10 @@
 import { Operation } from "@shared/util-auth";
-import { UserRepository } from "..";
+import { ContentGatewayUser, UserRepository } from "..";
 
 export const DELETE_USER = "DELETE_USER";
 
 export type DeleteUserParams = {
-    userId: string;
+    user: ContentGatewayUser;
 };
 
 export type DeleteUser = Operation<DeleteUserParams, void>;
@@ -14,6 +14,5 @@ export type DeleteUser = Operation<DeleteUserParams, void>;
  */
 export const makeDeleteUser = (userRepository: UserRepository): DeleteUser => ({
     name: DELETE_USER,
-    execute: ({ userId }: DeleteUserParams) =>
-        userRepository.deleteUser(userId),
+    execute: ({ user }: DeleteUserParams) => userRepository.deleteUser(user),
 });

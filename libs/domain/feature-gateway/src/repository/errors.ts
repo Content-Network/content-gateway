@@ -28,7 +28,7 @@ export class DatabaseError extends ProgramErrorBase<"DatabaseError"> {
     }
 }
 
-export class MissingSchemaError extends ProgramErrorBase<"MissingSchemaError"> {
+export class SchemaNotFoundError extends ProgramErrorBase<"MissingSchemaError"> {
     public info: SchemaInfo;
     constructor(info: SchemaInfo) {
         super({
@@ -39,7 +39,7 @@ export class MissingSchemaError extends ProgramErrorBase<"MissingSchemaError"> {
     }
 }
 
-export class MissingLoaderError extends ProgramErrorBase<"MissingLoaderError"> {
+export class LoaderNotFoundError extends ProgramErrorBase<"MissingLoaderError"> {
     public info: SchemaInfo;
     constructor(info: SchemaInfo) {
         super({

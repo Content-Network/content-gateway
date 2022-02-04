@@ -1,38 +1,38 @@
 import { createLogger } from "@banklessdao/util-misc";
 import {
     ContentGatewayUser,
+    DatabaseError,
     UserCreationError,
     UserDeletionError,
     UserNotFoundError,
     UserRepository,
     UserUpdateError
 } from "@domain/feature-gateway";
+import * as bcrypt from "bcrypt";
+import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
-import { MongoClient } from "mongodb";
+import { Db, ObjectId } from "mongodb";
+import { wrapDbOperation } from ".";
 import { MongoUser } from "./mongo/MongoUser";
 
 export const mongoUserToCGUser = (user: MongoUser): ContentGatewayUser => ({
-    id: user.id.toString(),
+    id: user._id.toString(),
     name: user.name,
     roles: user.roles,
     apiKeys: user.apiKeys,
 });
 
 type Deps = {
-    dbName: string;
+    db: Db;
     collName: string;
-    mongoClient: MongoClient;
 };
 
 export const createMongoUserRepository = async ({
-    dbName,
-    mongoClient,
+    db,
     collName,
 }: Deps): Promise<UserRepository> => {
-    const db = mongoClient.db(dbName);
     const logger = createLogger("MongoUserRepository");
     const users = db.collection<MongoUser>(collName);
-
     await users.createIndex({ name: 1 });
     await users.createIndex({ roles: 1 });
     await users.createIndex({ "apiKeys.id": 1 });
@@ -40,39 +40,149 @@ export const createMongoUserRepository = async ({
 
     const findById = (
         id: string
-    ): TE.TaskEither<UserNotFoundError, ContentGatewayUser> => {
-        return TE.left(new UserNotFoundError("Not implemented"));
+    ): TE.TaskEither<UserNotFoundError | DatabaseError, ContentGatewayUser> => {
+        return pipe(
+            wrapDbOperation(() => users.findOne({ _id: new ObjectId(id) }))(),
+            TE.chainW((mongoUser) => {
+                if (mongoUser) {
+                    return TE.right(mongoUserToCGUser(mongoUser));
+                } else {
+                    return TE.left(
+                        new UserNotFoundError(`Couldn't find user by id ${id}`)
+                    );
+                }
+            }),
+            TE.mapLeft((e) => {
+                logger.error(e);
+                return e;
+            })
+        );
     };
 
     const findByApiKeyId = (
-        apiKey: string
-    ): TE.TaskEither<UserNotFoundError, ContentGatewayUser> => {
-        return TE.left(new UserNotFoundError("Not implemented"));
+        apiKeyId: string
+    ): TE.TaskEither<UserNotFoundError | DatabaseError, ContentGatewayUser> => {
+        return pipe(
+            wrapDbOperation(() =>
+                users.findOne({ "apiKeys.id": { $in: apiKeyId } })
+            )(),
+            TE.chainW((mongoUser) => {
+                if (mongoUser) {
+                    return TE.right(mongoUserToCGUser(mongoUser));
+                } else {
+                    return TE.left(
+                        new UserNotFoundError("Couldn't find user by API key.")
+                    );
+                }
+            }),
+            TE.mapLeft((e) => {
+                logger.error(e);
+                return e;
+            })
+        );
     };
 
     const findByApiKeyHash = (
         apiKey: string
-    ): TE.TaskEither<UserNotFoundError, ContentGatewayUser> => {
-        return TE.left(new UserNotFoundError("Not implemented"));
+    ): TE.TaskEither<UserNotFoundError | DatabaseError, ContentGatewayUser> => {
+        return pipe(
+            TE.Do,
+            TE.bind("hash", () => TE.fromTask(() => bcrypt.hash(apiKey, 10))),
+            TE.bind("mongoUser", ({ hash }) =>
+                wrapDbOperation(() =>
+                    users.findOne({ "apiKeys.hash": { $in: hash } })
+                )()
+            ),
+            TE.chainW(({ mongoUser }) => {
+                if (mongoUser) {
+                    return TE.right(mongoUserToCGUser(mongoUser));
+                } else {
+                    return TE.left(
+                        new UserNotFoundError("Couldn't find user by API key.")
+                    );
+                }
+            }),
+            TE.mapLeft((e) => {
+                logger.error(e);
+                return e;
+            })
+        );
     };
 
     const createUser = (
         name: string,
         roles: string[]
     ): TE.TaskEither<UserCreationError, ContentGatewayUser> => {
-        return TE.left(new UserCreationError("Not implemented"));
+        return pipe(
+            wrapDbOperation(() =>
+                users.insertOne({ name, roles, apiKeys: [] })
+            )(),
+            TE.map((result) => {
+                return mongoUserToCGUser({
+                    _id: result.insertedId,
+                    apiKeys: [],
+                    name,
+                    roles,
+                });
+            }),
+            TE.mapLeft((e) => {
+                logger.error(e);
+                return new UserCreationError(
+                    `Couldn't create user: ${e.message}`
+                );
+            })
+        );
     };
 
     const updateUser = (
         user: ContentGatewayUser
     ): TE.TaskEither<UserUpdateError, void> => {
-        return TE.left(new UserUpdateError("Not implemented"));
+        return pipe(
+            wrapDbOperation(() =>
+                users.updateOne(
+                    {
+                        _id: new ObjectId(user.id),
+                    },
+                    {
+                        $set: {
+                            name: user.name,
+                            roles: user.roles,
+                            apiKeys: user.apiKeys,
+                        },
+                    }
+                )
+            )(),
+            TE.map(() => {
+                return undefined;
+            }),
+            TE.mapLeft((e) => {
+                logger.error(e);
+                return new UserUpdateError(
+                    `Couldn't update user: ${e.message}`
+                );
+            })
+        );
     };
 
     const deleteUser = (
-        userId: string
+        user: ContentGatewayUser
     ): TE.TaskEither<UserDeletionError, void> => {
-        return TE.left(new UserDeletionError("Not implemented"));
+        return pipe(
+            wrapDbOperation(() =>
+                users.deleteOne({
+                    _id: new ObjectId(user.id),
+                })
+            )(),
+            TE.map(() => {
+                return undefined;
+            }),
+            TE.mapLeft((e) => {
+                logger.error(e);
+                return new UserDeletionError(
+                    `Couldn't delete user: ${e.message}`
+                );
+            })
+        );
     };
 
     return {

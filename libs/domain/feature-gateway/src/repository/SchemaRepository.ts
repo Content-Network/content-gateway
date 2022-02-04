@@ -1,22 +1,23 @@
-import { UnknownError } from "@banklessdao/util-data";
+import { CodecValidationError, UnknownError } from "@banklessdao/util-data";
 import {
     Schema,
     SchemaInfo,
-    schemaInfoToString,
+    schemaInfoToString
 } from "@banklessdao/util-schema";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
-import * as TO from "fp-ts/TaskOption";
 import {
     ContentGatewayUser,
     DatabaseError,
     RegisteredSchemaIncompatibleError,
+    SchemaNotFoundError
 } from ".";
 import { SchemaEntity } from "./SchemaEntity";
 
 export type SchemaRegistrationError =
     | UnknownError
     | DatabaseError
+    | CodecValidationError
     | RegisteredSchemaIncompatibleError;
 
 export type SchemaRemovalError = UnknownError | DatabaseError;
@@ -32,7 +33,12 @@ export type SchemaStat = {
  * It is responsible for storing the schemas sent from the SDK.
  */
 export type SchemaRepository = {
-    find: (key: SchemaInfo) => TO.TaskOption<SchemaEntity>;
+    find: (
+        key: SchemaInfo
+    ) => TE.TaskEither<
+        SchemaNotFoundError | CodecValidationError,
+        SchemaEntity
+    >;
     findAll: () => T.Task<Array<SchemaEntity>>;
     register: (
         schema: Schema,
@@ -60,10 +66,11 @@ export const createSchemaRepositoryStub = (
             owner: ContentGatewayUser
         ): TE.TaskEither<SchemaRegistrationError, void> => {
             const keyStr = schemaInfoToString(schema.info);
-            map.set(keyStr, {
+            const se = {
                 ...schema,
                 owner,
-            });
+            };
+            map.set(keyStr, se);
             return TE.right(undefined);
         },
         remove: (
@@ -73,12 +80,17 @@ export const createSchemaRepositoryStub = (
             map.delete(keyStr);
             return TE.right(undefined);
         },
-        find: (key: SchemaInfo): TO.TaskOption<SchemaEntity> => {
+        find: (
+            key: SchemaInfo
+        ): TE.TaskEither<
+            SchemaNotFoundError | CodecValidationError,
+            SchemaEntity
+        > => {
             const keyStr = schemaInfoToString(key);
             if (map.has(keyStr)) {
-                return TO.some(map.get(keyStr) as SchemaEntity);
+                return TE.right(map.get(keyStr) as SchemaEntity);
             } else {
-                return TO.none;
+                return TE.left(new SchemaNotFoundError(key));
             }
         },
         findAll: () => T.of(Array.from(map.values())),

@@ -6,15 +6,22 @@ import {
     Data,
     NonEmptyProperty,
     OptionalProperty,
-    Schema,
     schemaInfoToString
 } from "@banklessdao/util-schema";
-import { ContentGatewayUser, SchemaRepository } from "@domain/feature-gateway";
+import {
+    ContentGatewayUser,
+    SchemaRepository,
+    UserRepository
+} from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
-import * as O from "fp-ts/Option";
 import { Collection, Db, MongoClient } from "mongodb";
 import { v4 as uuid } from "uuid";
-import { createMongoSchemaRepository, MongoSchema } from ".";
+import {
+    createMongoSchemaRepository,
+    createMongoUserRepository,
+    MongoSchema
+} from ".";
+import { MongoUser } from "./mongo/MongoUser";
 
 const userInfo = {
     namespace: "test",
@@ -72,31 +79,38 @@ describe("Given a Mongo schema storage", () => {
     let mongoClient: MongoClient;
     let db: Db;
     let schemas: Collection<MongoSchema>;
+    let users: Collection<MongoUser>;
+    let userRepository: UserRepository;
+    let user: ContentGatewayUser;
 
-    const user: ContentGatewayUser = {
-        id: uuid(),
-        name: "test",
-        apiKeys: [],
-        roles: [],
-    };
     const collName = uuid();
+    const usersCollName = uuid();
 
     beforeAll(async () => {
         mongoClient = new MongoClient(url);
-        db = mongoClient.db(dbName);
-        schemas = db.collection<MongoSchema>(collName);
-
         await mongoClient.connect();
 
+        db = mongoClient.db(dbName);
+        schemas = db.collection<MongoSchema>(collName);
+        users = db.collection<MongoUser>(usersCollName);
+        userRepository = await createMongoUserRepository({
+            db,
+            collName: usersCollName,
+        });
+        user = extractRight(
+            await userRepository.createUser("test", ["admin"])()
+        );
+
         target = await createMongoSchemaRepository({
-            dbName,
+            db,
             collName,
-            mongoClient,
+            usersCollName,
         });
     });
 
     afterAll(async () => {
         await schemas.drop();
+        await users.drop();
         await mongoClient.close();
     });
 
@@ -152,9 +166,7 @@ describe("Given a Mongo schema storage", () => {
             const schema = createSchema(User, version);
             await target.register(schema, user)();
 
-            const result = (
-                (await target.find(schema.info)()) as O.Some<Schema>
-            ).value;
+            const result = extractRight(await target.find(schema.info)());
             expect({
                 info: result.info,
                 jsonSchema: result.jsonSchema,

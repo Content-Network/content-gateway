@@ -3,10 +3,8 @@ import { Operation } from "@shared/util-auth";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
 import {
-    ContentGatewayUser,
-    MissingSchemaError,
-    SchemaEntity,
-    SchemaRepository,
+    ContentGatewayUser, SchemaEntity,
+    SchemaRepository
 } from "..";
 
 export const FIND_SCHEMA_FOR = "FIND_SCHEMA_FOR";
@@ -35,7 +33,6 @@ export const makeFindSchemaFor = <T>(
         const { info, ...rest } = params;
         return pipe(
             schemaRepository.find(info),
-            TE.fromTaskOption(() => new MissingSchemaError(info)),
             TE.map((schema) => ({
                 ...rest,
                 schema,

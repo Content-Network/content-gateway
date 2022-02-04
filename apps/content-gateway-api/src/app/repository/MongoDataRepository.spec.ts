@@ -21,14 +21,17 @@ import {
     SchemaValidationError,
     SinglePayload
 } from "@domain/feature-gateway";
+import * as E from "fp-ts/Either";
 import * as O from "fp-ts/Option";
-import { Db, MongoClient } from "mongodb";
+import { Collection, Db, MongoClient } from "mongodb";
 import { v4 as uuid } from "uuid";
 import {
     createMongoDataRepository,
     createMongoSchemaRepository,
-    DocumentData
+    DocumentData,
+    MongoSchema
 } from ".";
+import { MongoUser } from "./mongo/MongoUser";
 
 const addressInfo = {
     namespace: "test",
@@ -58,7 +61,9 @@ describe("Given a Mongo data storage", () => {
     let mongoClient: MongoClient;
     let db: Db;
     let schemaRepository: SchemaRepository;
+    let users: Collection<MongoUser>;
     const collName = uuid();
+    const usersCollName = uuid();
 
     const user: ContentGatewayUser = {
         id: uuid(),
@@ -70,11 +75,15 @@ describe("Given a Mongo data storage", () => {
     beforeAll(async () => {
         mongoClient = new MongoClient(url);
         await mongoClient.connect();
+
         db = mongoClient.db(dbName);
+        schemas = db.collection<MongoSchema>(collName);
+        users = db.collection<MongoUser>(usersCollName);
 
         schemaRepository = await createMongoSchemaRepository({
             dbName,
             collName,
+            usersCollName,
             mongoClient,
         });
 
@@ -89,6 +98,7 @@ describe("Given a Mongo data storage", () => {
         await db.dropCollection(collName);
         const schemas = await schemaRepository.findAll()();
         await Promise.all(schemas.map(schemaRepository.remove));
+        await users.drop();
         await mongoClient.close();
     });
 
@@ -115,10 +125,13 @@ describe("Given a Mongo data storage", () => {
     });
 
     const storeRecord = async (payload: SinglePayload): Promise<Entry> => {
-        await target.store({
+        const result = await target.store({
             info: payload.info,
             records: [payload.record],
         })();
+        if (E.isLeft(result)) {
+            throw result.left;
+        }
         const { info, record } = payload;
         const coll = db.collection<DocumentData>(schemaInfoToString(info));
         const entry =

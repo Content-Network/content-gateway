@@ -60,13 +60,12 @@ export const createApp = async (prisma: PrismaClient) => {
         snapshotSpaces: SNAPSHOT_SPACES,
     });
     const jobRepository = createJobRepository(prisma);
-    const adapter = createHTTPAdapterV1({
-        apiURL: CGA_URL,
-        apiKey: CGA_API_KEY,
-    });
 
     const contentGatewayClient = createContentGatewayClientV1({
-        adapter: adapter,
+        adapter: createHTTPAdapterV1({
+            apiURL: CGA_URL,
+            apiKey: CGA_API_KEY,
+        }),
     });
 
     const scheduler = createJobScheduler({
@@ -174,7 +173,7 @@ export const createApp = async (prisma: PrismaClient) => {
         );
     });
 
-    app.get("/api/v1/rest/jobs/reset", (req, res) => {
+    app.get("/api/v1/rest/jobs/reset", (_, res) => {
         return pipe(
             jobRepository.findAll(),
             TE.fromTask,

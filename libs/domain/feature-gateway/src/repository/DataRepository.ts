@@ -11,7 +11,7 @@ import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
 import * as TO from "fp-ts/TaskOption";
 import * as t from "io-ts";
-import { DatabaseError, MissingSchemaError, SchemaValidationError } from ".";
+import { DatabaseError, SchemaNotFoundError, SchemaValidationError } from ".";
 
 export type SinglePayload = {
     info: SchemaInfo;
@@ -110,7 +110,8 @@ export type Query = {
 };
 
 export type DataStorageError =
-    | MissingSchemaError
+    | SchemaNotFoundError
+    | CodecValidationError
     | SchemaValidationError
     | DatabaseError;
 

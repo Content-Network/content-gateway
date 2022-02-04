@@ -1,5 +1,6 @@
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { CodecValidationError, UnknownError } from "@banklessdao/util-data";
+import { createLogger } from "@banklessdao/util-misc";
 import {
     createSchemaFromObject,
     Schema,
@@ -12,6 +13,7 @@ import {
     DatabaseError,
     RegisteredSchemaIncompatibleError,
     SchemaEntity,
+    SchemaNotFoundError,
     SchemaRegistrationError,
     SchemaRemovalError,
     SchemaRepository,
@@ -22,23 +24,22 @@ import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
-import * as TO from "fp-ts/TaskOption";
-import { MongoClient } from "mongodb";
+import { Db } from "mongodb";
 import { MongoSchema, mongoUserToCGUser, wrapDbOperation } from ".";
 
 type Deps = {
-    dbName: string;
+    db: Db;
     collName: string;
-    mongoClient: MongoClient;
+    usersCollName: string;
 };
 
 export const createMongoSchemaRepository = async ({
-    dbName,
+    db,
     collName,
-    mongoClient,
+    usersCollName,
 }: Deps): Promise<SchemaRepository> => {
-    const db = mongoClient.db(dbName);
     const schemas = db.collection<MongoSchema>(collName);
+    const logger = createLogger("MongoSchemaRepository");
 
     // TODO! test if the index was created
     await schemas.createIndex({ key: 1 }, { unique: true });
@@ -46,49 +47,75 @@ export const createMongoSchemaRepository = async ({
     await schemas.createIndex({ createdAt: 1 });
     await schemas.createIndex({ updatedAt: 1 });
 
-    const find = (info: SchemaInfo): TO.TaskOption<SchemaEntity> => {
+    const find = (
+        info: SchemaInfo
+    ): TE.TaskEither<
+        SchemaNotFoundError | CodecValidationError,
+        SchemaEntity
+    > => {
         return pipe(
-            TO.tryCatch(() => {
-                return schemas
-                    .aggregate<MongoSchema>([
-                        {
-                            $match: { key: schemaInfoToString(info) },
-                        },
-                        {
-                            $limit: 1,
-                        },
-                        {
-                            $project: {
-                                userId: { $toString: "_id" },
+            TE.tryCatch(
+                async () => {
+                    return schemas
+                        .aggregate<MongoSchema>([
+                            {
+                                $match: { key: schemaInfoToString(info) },
                             },
-                        },
-                        {
-                            $lookup: {
-                                from: "users",
-                                localField: "ownerId",
-                                foreignField: "userId",
-                                as: "users",
+                            {
+                                $limit: 1,
                             },
-                        },
-                        {
-                            $addFields: {
-                                owner: { $first: "$users" },
+                            {
+                                $project: {
+                                    userId: { $toString: "_id" },
+                                    key: true,
+                                    jsonSchema: true,
+                                    createdAt: true,
+                                    updatedAt: true,
+                                    deletedAt: true,
+                                },
                             },
-                        },
-                    ])
-                    .limit(1)
-                    .toArray();
+                            {
+                                $lookup: {
+                                    from: usersCollName,
+                                    localField: "ownerId",
+                                    foreignField: "userId",
+                                    as: "users",
+                                },
+                            },
+                            {
+                                $project: {
+                                    key: true,
+                                    jsonSchema: true,
+                                    createdAt: true,
+                                    updatedAt: true,
+                                    deletedAt: true,
+                                    owner: { $first: "$users" },
+                                },
+                            },
+                        ])
+                        .limit(1)
+                        .toArray();
+                },
+                (e) => {
+                    logger.error(e);
+                    return new SchemaNotFoundError(info);
+                }
+            ),
+            TE.chain((arr) => {
+                if (arr.length === 0) {
+                    return TE.left(new SchemaNotFoundError(info));
+                } else {
+                    return TE.right(arr[0]);
+                }
             }),
-            TO.chain((arr) => TO.fromNullable(arr[0])),
-            TO.chain((mongoSchema) => {
+            TE.chainW((mongoSchema) => {
                 return pipe(
-                    TO.fromEither(
-                        createSchemaFromObject({
-                            info: info,
-                            jsonSchema: mongoSchema.jsonSchema,
-                        })
-                    ),
-                    TO.map((schema) => ({
+                    createSchemaFromObject({
+                        info: info,
+                        jsonSchema: mongoSchema.jsonSchema,
+                    }),
+                    TE.fromEither,
+                    TE.map((schema) => ({
                         ...schema,
                         owner: mongoUserToCGUser(mongoSchema.owner),
                     }))
@@ -103,12 +130,12 @@ export const createMongoSchemaRepository = async ({
     ): TE.TaskEither<SchemaRegistrationError, void> => {
         return pipe(
             find(schema.info),
-            TO.getOrElse(() =>
-                T.of({
+            TE.getOrElse(() => {
+                return T.of({
                     ...schema,
                     owner,
-                })
-            ),
+                });
+            }),
             TE.fromTask,
             TE.mapLeft((e: unknown) => new UnknownError(e)),
             TE.chainW((oldSchema) => {
@@ -125,7 +152,9 @@ export const createMongoSchemaRepository = async ({
                 }
                 return result;
             }),
-            TE.map(() => undefined)
+            TE.map(() => {
+                return undefined;
+            })
         );
     };
 
