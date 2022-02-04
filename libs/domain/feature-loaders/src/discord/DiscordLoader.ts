@@ -1,4 +1,4 @@
-import { notEmpty } from "@banklessdao/util-misc";
+import { notEmpty, programError } from "@banklessdao/util-misc";
 import {
     LoadContext,
     ScheduleMode,
@@ -6,15 +6,16 @@ import {
     DEFAULT_CURSOR,
     DatabaseError,
 } from "@shared/util-loaders";
+
+import { ProgramError, UnknownError } from "@banklessdao/util-data";
 import {
     Data,
     NonEmptyProperty,
     OptionalProperty,
 } from "@banklessdao/util-schema";
-import * as t from "io-ts";
-import { withMessage } from "io-ts-types";
-import { TextChannel, Client, Intents } from "discord.js";
+import { TextChannel, Client, Intents, Collection, Message } from "discord.js";
 import * as TE from "fp-ts/lib/TaskEither";
+import { left } from "fp-ts/lib/Separated";
 
 const INFO = {
     namespace: "discord",
@@ -34,23 +35,10 @@ class DiscordMessage {
     createdAt: string;
 }
 
-const DiscordMessageCodec = t.strict({
-    id: t.string,
-    content: t.string,
-    createdAt: t.string,
-});
-
-const DiscordMessagesCodec = t.strict({
-    messages: withMessage(
-        t.array(DiscordMessageCodec),
-        () => "DiscordMessage is required"
-    ),
-});
-
-type DiscordMessages = t.TypeOf<typeof DiscordMessagesCodec>;
+type DiscordFetchResult = Collection<string, Message>;
 
 export class DiscordLoader extends DataLoaderBase<
-    DiscordMessages,
+    DiscordFetchResult,
     DiscordMessage
 > {
     public info = INFO;
@@ -62,8 +50,6 @@ export class DiscordLoader extends DataLoaderBase<
         [ScheduleMode.BACKFILL]: { seconds: 5 },
         [ScheduleMode.INCREMENTAL]: { minutes: 5 },
     };
-
-    protected codec = DiscordMessagesCodec;
 
     private token: string;
     private channelId: string;
@@ -80,75 +66,39 @@ export class DiscordLoader extends DataLoaderBase<
         super();
         this.token = token;
         this.channelId = channelId;
-
-        // Create a new client instance
-        // Login to Discord with your client's token
-        // TODO we could wait for the ready - but it should be ready quickly, most probably before the loader
-        // TODO in general - could add some discord error handling
-        this.client.login(token);
+        this.client.login(this.token);
     }
 
-    // TODO create a new loader base? -> check "await" TODO below as well
     protected loadRaw(context: LoadContext) {
         return TE.tryCatch(
-            this.mapDiscordResult(context.cursor),
+            () => {
+                const channel = this.client.channels.cache.get(
+                    this.channelId
+                ) as TextChannel;
+
+                return channel.messages.fetch({
+                    limit: this.batchSize,
+                    after: context.cursor,
+                });
+            },
             (err: unknown) => {
                 return new DatabaseError(String(err));
             }
         );
     }
 
-    protected mapDiscordResult(cursor?: string) {
-        const channel = this.client.channels.cache.get(
-            this.channelId
-        ) as TextChannel;
-
-        // TODO do we need to await this here at all? 
-        // TODO Check error handling
-        // TODO -> do we want to map here already? Or pass the discord message type as raw data ?
-        return async () => {
-            const data = await channel.messages.fetch({
-                limit: this.batchSize,
-                after: cursor,
-            });
-            return {
-                messages: data.map((m) => ({
-                    id: m.id,
-                    content: m.content,
-                    createdAt: m.createdAt.toString(),
-                })),
-            };
-        };
-    }
-
-    protected mapResult(result: DiscordMessages): Array<DiscordMessage> {
-        return result.messages
-            .map((result) => {
-                try {
-                    return {
-                        id: result.id,
-                        content: result.content,
-                        createdAt: result.createdAt,
-                    };
-                } catch (e) {
-                    this.logger.warn(
-                        `Processing Discord Messages failed`,
-                        e,
-                        result
-                    );
-                    return undefined;
-                }
-            })
+    protected mapResult(rawData: DiscordFetchResult): Array<DiscordMessage> {
+        return rawData
+            .map((rawData) => ({
+                id: rawData.id,
+                content: rawData.content,
+                createdAt: rawData.createdAt.toString(),
+            }))
             .filter(notEmpty);
     }
 
-    protected extractCursor(result: DiscordMessages) {
-        let cursor: string = DEFAULT_CURSOR;
-
-        if (result.messages.length > 0) {
-            cursor = result.messages[result.messages.length - 1].id;
-        }
-        return cursor;
+    protected extractCursor(result: DiscordFetchResult) {
+        return result.at(result.size - 1)?.id || DEFAULT_CURSOR;
     }
 }
 
