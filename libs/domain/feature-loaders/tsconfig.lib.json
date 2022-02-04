@@ -9,6 +9,6 @@
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true
     },
-    "include": ["**/*.ts"],
+    "include": ["**/*.ts", "../../shared/util-loaders/src/CodecDataLoaderBase.ts"],
     "exclude": ["**/*.spec.ts"]
 }
