@@ -6,7 +6,7 @@ import {
     Schema,
     SchemaInfo,
     schemaInfoToString,
-    stringToSchemaInfo
+    stringToSchemaInfo,
 } from "@banklessdao/util-schema";
 import {
     ContentGatewayUser,
@@ -17,7 +17,8 @@ import {
     SchemaRegistrationError,
     SchemaRemovalError,
     SchemaRepository,
-    SchemaStat
+    SchemaStat,
+    UserRepository,
 } from "@domain/feature-gateway";
 import * as A from "fp-ts/Array";
 import * as E from "fp-ts/Either";
@@ -66,7 +67,6 @@ export const createMongoSchemaRepository = async ({
                             },
                             {
                                 $project: {
-                                    userId: { $toString: "_id" },
                                     key: true,
                                     jsonSchema: true,
                                     createdAt: true,
@@ -93,7 +93,6 @@ export const createMongoSchemaRepository = async ({
                                 },
                             },
                         ])
-                        .limit(1)
                         .toArray();
                 },
                 (e) => {
@@ -105,6 +104,7 @@ export const createMongoSchemaRepository = async ({
                 if (arr.length === 0) {
                     return TE.left(new SchemaNotFoundError(info));
                 } else {
+                    // ! TODO: what should we do if the owner is no longer present?
                     return TE.right(arr[0]);
                 }
             }),
@@ -168,9 +168,11 @@ export const createMongoSchemaRepository = async ({
                     key: schemaKey,
                 });
             })(),
-            wrapDbOperation(() => {
-                return db.dropCollection(schemaKey);
-            }),
+            TE.chain(() =>
+                wrapDbOperation(() => {
+                    return db.dropCollection(schemaKey);
+                })()
+            ),
             TE.map(() => undefined)
         );
     };
@@ -267,9 +269,37 @@ export const createMongoSchemaRepository = async ({
     const findAll = (): T.Task<Array<SchemaEntity>> => {
         return pipe(
             async () => {
-                // * this can fail on paper, but if there is no database connection
-                // * 👇 then we have bigger problems
-                return schemas.find().toArray();
+                return schemas
+                    .aggregate<MongoSchema>([
+                        {
+                            $project: {
+                                key: true,
+                                jsonSchema: true,
+                                createdAt: true,
+                                updatedAt: true,
+                                deletedAt: true,
+                            },
+                        },
+                        {
+                            $lookup: {
+                                from: usersCollName,
+                                localField: "ownerId",
+                                foreignField: "userId",
+                                as: "users",
+                            },
+                        },
+                        {
+                            $project: {
+                                key: true,
+                                jsonSchema: true,
+                                createdAt: true,
+                                updatedAt: true,
+                                deletedAt: true,
+                                owner: { $first: "$users" },
+                            },
+                        },
+                    ])
+                    .toArray();
             },
             T.map((entities) => {
                 return pipe(

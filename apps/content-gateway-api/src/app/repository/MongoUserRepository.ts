@@ -6,21 +6,22 @@ import {
     UserDeletionError,
     UserNotFoundError,
     UserRepository,
-    UserUpdateError
+    UserUpdateError,
 } from "@domain/feature-gateway";
-import * as bcrypt from "bcrypt";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
 import { Db, ObjectId } from "mongodb";
 import { wrapDbOperation } from ".";
 import { MongoUser } from "./mongo/MongoUser";
 
-export const mongoUserToCGUser = (user: MongoUser): ContentGatewayUser => ({
-    id: user._id.toString(),
-    name: user.name,
-    roles: user.roles,
-    apiKeys: user.apiKeys,
-});
+export const mongoUserToCGUser = (user: MongoUser): ContentGatewayUser => {
+    return {
+        id: user._id.toString(),
+        name: user.name,
+        roles: user.roles,
+        apiKeys: user.apiKeys,
+    };
+};
 
 type Deps = {
     db: Db;
@@ -63,9 +64,7 @@ export const createMongoUserRepository = async ({
         apiKeyId: string
     ): TE.TaskEither<UserNotFoundError | DatabaseError, ContentGatewayUser> => {
         return pipe(
-            wrapDbOperation(() =>
-                users.findOne({ "apiKeys.id": { $in: apiKeyId } })
-            )(),
+            wrapDbOperation(() => users.findOne({ "apiKeys.id": apiKeyId }))(),
             TE.chainW((mongoUser) => {
                 if (mongoUser) {
                     return TE.right(mongoUserToCGUser(mongoUser));
@@ -83,17 +82,13 @@ export const createMongoUserRepository = async ({
     };
 
     const findByApiKeyHash = (
-        apiKey: string
+        hash: string
     ): TE.TaskEither<UserNotFoundError | DatabaseError, ContentGatewayUser> => {
         return pipe(
-            TE.Do,
-            TE.bind("hash", () => TE.fromTask(() => bcrypt.hash(apiKey, 10))),
-            TE.bind("mongoUser", ({ hash }) =>
-                wrapDbOperation(() =>
-                    users.findOne({ "apiKeys.hash": { $in: hash } })
-                )()
-            ),
-            TE.chainW(({ mongoUser }) => {
+            wrapDbOperation(async () => {
+                return users.findOne({ "apiKeys.hash": hash });
+            })(),
+            TE.chainW((mongoUser) => {
                 if (mongoUser) {
                     return TE.right(mongoUserToCGUser(mongoUser));
                 } else {

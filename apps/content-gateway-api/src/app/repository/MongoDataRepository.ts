@@ -14,7 +14,8 @@ import {
     Entry,
     EntryList,
     Filter,
-    ListPayload, OrderBy,
+    ListPayload,
+    OrderBy,
     OrderDirection,
     Query,
     QueryError,
@@ -25,8 +26,8 @@ import { absurd, pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
 import * as TO from "fp-ts/TaskOption";
 import {
+    Db,
     Filter as MongoFilter,
-    MongoClient,
     ObjectId,
     SortDirection,
     WithId
@@ -34,17 +35,14 @@ import {
 import { DocumentData, wrapDbOperation, wrapDbOperationWithParams } from ".";
 
 type Deps = {
-    dbName: string;
-    mongoClient: MongoClient;
+    db: Db;
     schemaRepository: SchemaRepository;
 };
 
 export const createMongoDataRepository = ({
-    dbName,
-    mongoClient,
+    db,
     schemaRepository,
 }: Deps): DataRepository => {
-    const db = mongoClient.db(dbName);
     const logger = createLogger("MongoDataRepository");
 
     const validateRecords =
@@ -97,16 +95,7 @@ export const createMongoDataRepository = ({
                     return collection.bulkWrite(updates);
                 })
             ),
-            TE.map((result) => {
-                logger.info("Bulk upsert results:", {
-                    insertedCount: result.insertedCount,
-                    matchedCount: result.matchedCount,
-                    modifiedCount: result.modifiedCount,
-                    upsertedCount: result.upsertedCount,
-                    ok: result.ok,
-                    hasWriteErrors: result.hasWriteErrors(),
-                    writeErrorCount: result.getWriteErrorCount(),
-                });
+            TE.map(() => {
                 return undefined;
             })
         );

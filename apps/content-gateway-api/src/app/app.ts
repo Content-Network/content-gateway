@@ -4,7 +4,7 @@ import {
     ContentGateway,
     createContentGateway,
     DataRepository,
-    UserRepository,
+    UserRepository
 } from "@domain/feature-gateway";
 import * as express from "express";
 import { graphqlHTTP } from "express-graphql";
@@ -16,7 +16,7 @@ import {
     createGraphQLAPIV1,
     createMongoUserRepository,
     ObservableSchemaRepository,
-    toObservableSchemaRepository,
+    toObservableSchemaRepository
 } from ".";
 import { createMongoDataRepository, createMongoSchemaRepository } from "./";
 import { liveLoaders } from "./live-loaders";
@@ -45,6 +45,7 @@ export const createApp = async ({
     const resetDb = process.env.RESET_DB === "true";
     const addFrontend = process.env.ADD_FRONTEND === "true";
     const logger = createLogger("ContentGatewayAPIApp");
+    const db = mongoClient.db(dbName);
 
     if (resetDb) {
         await mongoClient.db(dbName).dropDatabase();
@@ -55,22 +56,20 @@ export const createApp = async ({
 
     const schemaRepository = toObservableSchemaRepository(
         await createMongoSchemaRepository({
-            dbName,
+            db,
             collName: SCHEMAS_COLLECTION_NAME,
-            mongoClient,
+            usersCollName: USERS_COLLECTION_NAME,
         })
     );
 
     const dataRepository = createMongoDataRepository({
-        dbName,
-        mongoClient,
+        db,
         schemaRepository,
     });
 
     const userRepository = await createMongoUserRepository({
-        dbName,
+        db,
         collName: USERS_COLLECTION_NAME,
-        mongoClient,
     });
 
     const contentGateway = createContentGateway({

@@ -1,17 +1,22 @@
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
-import { extractRight, programError } from "@banklessdao/util-misc";
+import {
+    extractLeft,
+    extractRight,
+    programError,
+} from "@banklessdao/util-misc";
 import {
     ClassType,
     createSchemaFromClass,
     Data,
     NonEmptyProperty,
     OptionalProperty,
-    schemaInfoToString
+    schemaInfoToString,
 } from "@banklessdao/util-schema";
 import {
     ContentGatewayUser,
+    SchemaNotFoundError,
     SchemaRepository,
-    UserRepository
+    UserRepository,
 } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
 import { Collection, Db, MongoClient } from "mongodb";
@@ -19,7 +24,7 @@ import { v4 as uuid } from "uuid";
 import {
     createMongoSchemaRepository,
     createMongoUserRepository,
-    MongoSchema
+    MongoSchema,
 } from ".";
 import { MongoUser } from "./mongo/MongoUser";
 
@@ -174,6 +179,25 @@ describe("Given a Mongo schema storage", () => {
                 info: schema.info,
                 jsonSchema: schema.jsonSchema,
             });
+        });
+
+        it("Then when we call remove it is gone", async () => {
+            const version = uuid();
+            const schema = createSchema(User, version);
+            await target.register(schema, user)();
+            const se = extractRight(await target.find(schema.info)());
+            await target.remove(se)();
+            const result = extractLeft(await target.find(schema.info)());
+            expect(result).toEqual(new SchemaNotFoundError(schema.info));
+        });
+
+        it("Then when we try to find all it is returned", async () => {
+            const version = uuid();
+            const schema = createSchema(User, version);
+            await target.register(schema, user)();
+            const se = extractRight(await target.find(schema.info)());
+            const result = await target.findAll()();
+            expect(result.map((i) => i.info)).toEqual([se.info]);
         });
     });
 });

@@ -19,7 +19,8 @@ import {
     FilterType,
     SchemaRepository,
     SchemaValidationError,
-    SinglePayload
+    SinglePayload,
+    UserRepository
 } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
 import * as O from "fp-ts/Option";
@@ -28,8 +29,8 @@ import { v4 as uuid } from "uuid";
 import {
     createMongoDataRepository,
     createMongoSchemaRepository,
-    DocumentData,
-    MongoSchema
+    createMongoUserRepository,
+    DocumentData
 } from ".";
 import { MongoUser } from "./mongo/MongoUser";
 
@@ -61,35 +62,34 @@ describe("Given a Mongo data storage", () => {
     let mongoClient: MongoClient;
     let db: Db;
     let schemaRepository: SchemaRepository;
+    let userRepository: UserRepository;
     let users: Collection<MongoUser>;
+    let user: ContentGatewayUser;
+
     const collName = uuid();
     const usersCollName = uuid();
-
-    const user: ContentGatewayUser = {
-        id: uuid(),
-        name: "test",
-        apiKeys: [],
-        roles: [],
-    };
 
     beforeAll(async () => {
         mongoClient = new MongoClient(url);
         await mongoClient.connect();
 
         db = mongoClient.db(dbName);
-        schemas = db.collection<MongoSchema>(collName);
-        users = db.collection<MongoUser>(usersCollName);
-
+        users = await db.createCollection<MongoUser>(usersCollName);
+        userRepository = await createMongoUserRepository({
+            db,
+            collName: usersCollName,
+        });
+        user = extractRight(
+            await userRepository.createUser("Arnold", ["terminator"])()
+        );
         schemaRepository = await createMongoSchemaRepository({
-            dbName,
+            db,
             collName,
             usersCollName,
-            mongoClient,
         });
 
         target = createMongoDataRepository({
-            dbName,
-            mongoClient,
+            db,
             schemaRepository,
         });
     });
@@ -891,7 +891,7 @@ describe("Given a Mongo data storage", () => {
             expect(result.entries.map((r) => r.record.num)).toEqual([45]);
         });
 
-        //* This is a regresssion that happened because we tried to
+        //* This is a regression that happened because we tried to
         //* 👇 order by `data._id` by default (which doesn't exist)
         it("Then it returns the records in same order with different limits", async () => {
             const tempSchema = await prepareRandomSchema(uuid());

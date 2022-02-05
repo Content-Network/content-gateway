@@ -7,6 +7,7 @@ import {
     schemaInfoToString,
     SchemaValidationError,
 } from "@banklessdao/util-schema";
+import { SchemaNotFoundError } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as O from "fp-ts/Option";
@@ -14,7 +15,6 @@ import * as TE from "fp-ts/TaskEither";
 import {
     createHTTPAdapterV1,
     OutboundDataAdapterStub,
-    SchemaNotFoundError,
 } from ".";
 import {
     createOutboundAdapterStub,
