@@ -99,25 +99,6 @@ describe("Given a Mongo user repository", () => {
         });
     });
 
-    describe("When trying to find by API key hash", () => {
-        it("The it is found", async () => {
-            const hash = "hash0";
-
-            const user = extractRight(
-                await target.createUser("joe", ["admin"])()
-            );
-            user.apiKeys.push({
-                id: "id0",
-                hash: hash,
-            });
-            await target.updateUser(user)();
-
-            const result = extractRight(await target.findByApiKeyHash(hash)());
-
-            expect(result).toEqual(user);
-        });
-    });
-
     describe("When trying to find by API key id", () => {
         it("The it is found", async () => {
             const id = "id1";

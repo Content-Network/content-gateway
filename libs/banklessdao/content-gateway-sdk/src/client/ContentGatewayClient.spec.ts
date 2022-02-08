@@ -3,16 +3,17 @@ import {
     Nested,
     NonEmptyProperty,
     RequiredArrayRef,
-    SchemaValidationError
+    SchemaValidationError,
 } from "@banklessdao/util-schema";
 import axios from "axios";
 import * as E from "fp-ts/Either";
-import { createContentGatewayClientV1, createDefaultClientV1 } from ".";
-import { ContentGatewayClientV1 } from "./ContentGatewayClient";
+import { createContentGatewayClient, createDefaultClient } from ".";
+import { ContentGatewayClient } from "./ContentGatewayClient";
 import {
     createOutboundAdapterStub,
-    OutboundDataAdapterStub
+    OutboundDataAdapterStub,
 } from "./OutboundDataAdapter";
+import { schemaInfoToString } from "..";
 axios.defaults.adapter = require("axios/lib/adapters/http");
 
 const info = {
@@ -75,27 +76,13 @@ const invalidPostWithMissingData = {
 
 describe("Given a gateway client", () => {
     let adapterStub: OutboundDataAdapterStub;
-    let client: ContentGatewayClientV1;
+    let client: ContentGatewayClient;
 
     beforeEach(() => {
         adapterStub = createOutboundAdapterStub();
-        client = createContentGatewayClientV1({
+        client = createContentGatewayClient({
             adapter: adapterStub,
         });
-    });
-
-    it("test", async () => {
-        const c = createDefaultClientV1({
-            apiKey: "",
-            apiURL: "https://prod-content-gateway-api.herokuapp.com",
-        });
-
-        const result = await c.register({
-            info: info,
-            type: Post,
-        })();
-
-        console.log(result);
     });
 
     it("When registering a valid schema Then it should register properly", async () => {
@@ -170,7 +157,7 @@ describe("Given a gateway client", () => {
         })();
 
         expect(result).toEqual(
-            E.left(new Error("No schema found for key test.Post.V1"))
+            E.left(new Error(`Schema ${schemaInfoToString(info)} not found`))
         );
     });
 

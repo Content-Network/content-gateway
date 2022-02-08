@@ -3,16 +3,23 @@ import {
     mapCodecValidationError,
     ProgramError,
     programErrorCodec,
-    schemaInfoCodec,
+    schemaInfoCodec
 } from "@banklessdao/util-data";
-import { createLogger } from "@banklessdao/util-misc";
+import {
+    base64Decode,
+    base64Encode,
+    createLogger
+} from "@banklessdao/util-misc";
 import { createSchemaFromObject } from "@banklessdao/util-schema";
 import {
+    APIKeyCodec,
     ContentGateway,
     ContentGatewayUser,
-    UserNotFoundError,
-    UserRepository,
+    CreateUserParamsCodec,
+    InvalidAPIKeyError,
+    UserRepository
 } from "@domain/feature-gateway";
+import { Context } from "@shared/util-auth";
 import * as bcrypt from "bcrypt";
 import * as express from "express";
 import * as E from "fp-ts/Either";
@@ -20,6 +27,7 @@ import { pipe } from "fp-ts/lib/function";
 import * as T from "fp-ts/lib/Task";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as t from "io-ts";
+import { withMessage } from "io-ts-types";
 import { ANON_USER } from "../../..";
 
 const logger = createLogger("ContentGatewayAPI");
@@ -29,6 +37,10 @@ type Deps = {
     userRepository: UserRepository;
     contentGateway: ContentGateway;
 };
+
+export const KeyCodec = t.strict({
+    key: withMessage(t.string, () => "key must be a string"),
+});
 
 /**
  * This is the REST API of Content Gateway that is used
@@ -51,19 +63,47 @@ export const generateContentGatewayAPIV1 = async ({
     const extractUser = (
         req: express.Request
     ): TE.TaskEither<ProgramError, ContentGatewayUser> => {
-        const secret = req.header("X-Api-Key");
-        const error = new UserNotFoundError(
-            "User not found for the given API key"
-        );
-        if (!secret) {
+        const key = req.header("X-Api-Key");
+        if (!key) {
             return TE.of(ANON_USER);
         } else {
             return pipe(
-                Buffer.from(secret, "base64").toString(),
-                (key) => TE.fromTask(() => bcrypt.hash(key, 10)),
-                TE.mapLeft(() => error),
-                TE.chain(userRepository.findByApiKeyHash),
-                TE.orElse(() => TE.right(ANON_USER))
+                TE.Do,
+                TE.bind("decodedKey", () =>
+                    TE.right(JSON.parse(base64Decode(key)))
+                ),
+                TE.bindW("apiKey", ({ decodedKey }) => {
+                    return TE.fromEither(APIKeyCodec.decode(decodedKey));
+                }),
+                TE.mapLeft(() => {
+                    return new InvalidAPIKeyError("API key was invalid");
+                }),
+                TE.bindW("user", ({ apiKey }) => {
+                    return userRepository.findByApiKeyId(apiKey.id);
+                }),
+                TE.chainW(({ apiKey, user }) => {
+                    return TE.tryCatch(
+                        async () => {
+                            // * We know that the user is not null because we checked it above
+                            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                            const actualKey = user.apiKeys.find(
+                                (k) => k.id === apiKey.id
+                            )!;
+                            const isValid = await bcrypt.compare(
+                                apiKey.secret,
+                                actualKey.hash
+                            );
+                            if (!isValid) {
+                                throw new Error("Invalid API Key");
+                            }
+                            return user;
+                        },
+                        () =>
+                            new InvalidAPIKeyError(
+                                "The supplied API key was invalid."
+                            )
+                    );
+                })
             );
         }
     };
@@ -79,15 +119,126 @@ export const generateContentGatewayAPIV1 = async ({
         );
     };
 
-    router.get("/schema/stats", async (req, res) => {
+    const UserIdCodec = withMessage(
+        t.strict({
+            id: t.string,
+        }),
+        () => "id must be a string"
+    );
+
+    router.post("/user/", async (req, res) => {
         await pipe(
-            extractUser(req),
-            TE.map((currentUser) => ({
+            TE.Do,
+            TE.bind("currentUser", () => extractUser(req)),
+            TE.bindW("newUser", () =>
+                TE.fromEither(
+                    pipe(
+                        CreateUserParamsCodec.decode(req.body),
+                        mapCodecValidationError(
+                            "Validating create user params failed"
+                        )
+                    )
+                )
+            ),
+            TE.map(({ currentUser, newUser }) => ({
                 currentUser,
-                data: undefined,
+                data: newUser,
             })),
-            contentGateway.loadSchemaStats,
-            sendResponse(res, "Schema stats")
+            contentGateway.createUser,
+            sendResponse(res, "User creation")
+        )();
+    });
+
+    router.delete("/user/", async (req, res) => {
+        await pipe(
+            TE.Do,
+            TE.bind("currentUser", () => extractUser(req)),
+            TE.bindW("userId", () =>
+                TE.fromEither(
+                    pipe(
+                        UserIdCodec.decode(req.body),
+                        mapCodecValidationError(
+                            "Validating delete user params failed"
+                        )
+                    )
+                )
+            ),
+            TE.bindW("user", ({ userId }) => {
+                return userRepository.findById(userId.id);
+            }),
+            TE.map(({ currentUser, user }) => ({
+                currentUser,
+                data: { user },
+            })),
+            contentGateway.deleteUser,
+            sendResponse(res, "User deletion")
+        )();
+    });
+
+    router.post("/user/api-key", async (req, res) => {
+        await pipe(
+            TE.Do,
+            TE.bind("currentUser", () => extractUser(req)),
+            TE.bindW("userId", () =>
+                TE.fromEither(
+                    pipe(
+                        UserIdCodec.decode(req.body),
+                        mapCodecValidationError(
+                            "Validating create api key params failed"
+                        )
+                    )
+                )
+            ),
+            TE.bindW("owner", ({ userId }) => {
+                return userRepository.findById(userId.id);
+            }),
+            TE.map(({ currentUser, owner }) => ({
+                currentUser,
+                data: { owner },
+            })),
+            contentGateway.createAPIKey,
+            TE.map((ctx) => {
+                return {
+                    currentUser: ctx.currentUser,
+                    data: {
+                        key: base64Encode(JSON.stringify(ctx.data)),
+                    },
+                };
+            }),
+            sendResponse(res, "API key creation")
+        )();
+    });
+
+    router.delete("/user/api-key", async (req, res) => {
+        await pipe(
+            TE.Do,
+            TE.bind("currentUser", () => extractUser(req)),
+            TE.bindW("key", () =>
+                TE.fromEither(
+                    pipe(
+                        KeyCodec.decode(req.body),
+                        E.map((key) => {
+                            return JSON.parse(base64Decode(key.key));
+                        }),
+                        E.chainW((key) => {
+                            console.log(`key: ${key}`);
+                            return APIKeyCodec.decode(key);
+                        }),
+                        mapCodecValidationError(
+                            "Validating delete api key params failed"
+                        )
+                    )
+                )
+            ),
+            TE.bindW("owner", ({ key }) => {
+                return userRepository.findByApiKeyId(key.id);
+            }),
+            TE.map(({ currentUser, owner, key }) => ({
+                currentUser,
+                data: { owner, apiKeyId: key.id },
+            })),
+            contentGateway.deleteAPIKey,
+            sendResponse(res, "API key deletion creation")
         )();
     });
 
@@ -139,6 +290,18 @@ export const generateContentGatewayAPIV1 = async ({
         );
     });
 
+    router.get("/schema/stats", async (req, res) => {
+        await pipe(
+            extractUser(req),
+            TE.map((currentUser) => ({
+                currentUser,
+                data: undefined,
+            })),
+            contentGateway.loadSchemaStats,
+            sendResponse(res, "Schema stats")
+        )();
+    });
+
     router.post("/data/receive", async (req, res) => {
         return pipe(
             TE.Do,
@@ -162,15 +325,16 @@ export const generateContentGatewayAPIV1 = async ({
     return router;
 };
 
-const sendResponse = (res: express.Response, operation: string) =>
+const sendResponse = <O>(res: express.Response, operation: string) =>
     TE.fold(
         (e: ProgramError) => {
             logger.warn(`${operation} failed`, e);
             res.status(500).json(programErrorCodec.encode(e));
             return T.of(undefined);
         },
-        (data) => {
-            res.status(200).send(data);
+        (ctx: Context<O>) => {
+            console.log(`=== ctx: ${ctx.data}`);
+            res.status(200).send(ctx.data);
             return T.of(undefined);
         }
     );

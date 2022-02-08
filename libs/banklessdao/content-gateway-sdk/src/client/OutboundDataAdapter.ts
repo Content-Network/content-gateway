@@ -2,7 +2,7 @@ import {
     DataTransferError,
     del,
     JsonBatchPayload,
-    post,
+    post
 } from "@banklessdao/util-data";
 import { SchemaInfo, SchemaJson } from "@banklessdao/util-schema";
 import * as TE from "fp-ts/TaskEither";
@@ -13,7 +13,6 @@ import * as t from "io-ts";
  * It is used by the SDK to send data to a Content Gateway API server.
  * In 99% of cases what you'll need is the HTTP adapter which can be created by
  * calling the {@link createHTTPAdapterV1} function.
- * Note that
  */
 export type OutboundDataAdapter = {
     register: (
@@ -29,12 +28,12 @@ export type OutboundDataAdapter = {
 
 type Params = {
     apiURL: string;
-    apiKey: string;
+    apiKeySecret: string;
 };
 
 export const createHTTPAdapterV1 = ({
     apiURL,
-    apiKey,
+    apiKeySecret,
 }: Params): OutboundDataAdapter => {
     return {
         register: (schema: SchemaJson) => {
@@ -44,7 +43,7 @@ export const createHTTPAdapterV1 = ({
                 codec: t.UnknownRecord,
                 config: {
                     headers: {
-                        "X-Api-Key": apiKey,
+                        "X-Api-Key": apiKeySecret,
                     },
                 },
             });
@@ -56,7 +55,7 @@ export const createHTTPAdapterV1 = ({
                 codec: t.UnknownRecord,
                 config: {
                     headers: {
-                        "X-Api-Key": apiKey,
+                        "X-Api-Key": apiKeySecret,
                     },
                 },
             });
@@ -68,7 +67,7 @@ export const createHTTPAdapterV1 = ({
                 codec: t.UnknownRecord,
                 config: {
                     headers: {
-                        "X-Api-Key": apiKey,
+                        "X-Api-Key": apiKeySecret,
                     },
                 },
             });

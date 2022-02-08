@@ -5,20 +5,17 @@ import {
     Schema,
     SchemaInfo,
     schemaInfoToString,
-    SchemaValidationError,
+    SchemaValidationError
 } from "@banklessdao/util-schema";
 import { SchemaNotFoundError } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as O from "fp-ts/Option";
 import * as TE from "fp-ts/TaskEither";
-import {
-    createHTTPAdapterV1,
-    OutboundDataAdapterStub,
-} from ".";
+import { createHTTPAdapterV1, OutboundDataAdapterStub } from ".";
 import {
     createOutboundAdapterStub,
-    OutboundDataAdapter,
+    OutboundDataAdapter
 } from "./OutboundDataAdapter";
 
 export type RegistrationParams<T> = {
@@ -42,7 +39,7 @@ type ClientError =
  * - sending data to the Content Gateway API
  *
  */
-export type ContentGatewayClientV1 = {
+export type ContentGatewayClient = {
     /**
      * Registers a new unique Type with the gateway.
      */
@@ -51,7 +48,7 @@ export type ContentGatewayClientV1 = {
     ) => TE.TaskEither<ClientError, Record<string, unknown>>;
     /**
      * Tries to save the supplied [[payload]] to the Content Gateway API.
-     * The schema of the payload must be {@link ContentGatewayClientV1#register | register}ed
+     * The schema of the payload must be {@link ContentGatewayClient#register | register}ed
      * with the Content Gateway API first.
      */
     save: <T>(
@@ -65,32 +62,32 @@ export type ContentGatewayClientV1 = {
  * by _BanklessDAO_ by default.
  */
 // TODO: Remove this and only use env vars
-export const createDefaultClientV1 = ({
-    apiKey,
+export const createDefaultClient = ({
+    apiKeySecret,
     apiURL = "https://prod-content-gateway-api.herokuapp.com",
 }: {
-    apiKey: string;
+    apiKeySecret: string;
     apiURL: string;
 }) => {
-    return createContentGatewayClientV1({
-        adapter: createHTTPAdapterV1({apiURL, apiKey}),
+    return createContentGatewayClient({
+        adapter: createHTTPAdapterV1({ apiURL, apiKeySecret }),
     });
 };
 
 /**
- * Creates a new instance of the Content Gateway Client (V1).
+ * Creates a new instance of the Content Gateway Client.
  * @param adapter The adapter to use for sending data to the Content Gateway API. If you're
- * unsure what to pass, use {@link createDefaultClientV1} instead.
+ * unsure what to pass, use {@link createDefaultClient} instead.
  * 📙 **NOTE** that for now you can pass __any__ `apiKey`. Later this will be a required parameter later.
  */
-export const createContentGatewayClientV1 = ({
+export const createContentGatewayClient = ({
     adapter,
 }: {
     /**
      * The adapter to use for sending data to the Content Gateway API.
      */
     adapter: OutboundDataAdapter;
-}): ContentGatewayClientV1 => {
+}): ContentGatewayClient => {
     const schemas = new Map<string, Schema>();
     return {
         register: <T>({
@@ -149,7 +146,7 @@ export const createContentGatewayClientV1 = ({
  */
 export type ContentGatewayClientStub = {
     adapter: OutboundDataAdapterStub;
-} & ContentGatewayClientV1;
+} & ContentGatewayClient;
 
 /**
  * Creates a new {@link ContentGatewayClientStub} instance that uses
@@ -157,7 +154,7 @@ export type ContentGatewayClientStub = {
  */
 export const createClientStub: () => ContentGatewayClientStub = () => {
     const adapter = createOutboundAdapterStub();
-    const client = createContentGatewayClientV1({ adapter });
+    const client = createContentGatewayClient({ adapter });
     return {
         adapter,
         ...client,

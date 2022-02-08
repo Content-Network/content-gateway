@@ -17,17 +17,16 @@ import {
     REGISTER_SCHEMA,
     REMOVE_SCHEMA,
     SaveDataParams,
-    SaveDataRawParams,
     SAVE_DATA,
     SchemaEntity,
-    SchemaStat,
+    SchemaStat
 } from "@domain/feature-gateway";
 import {
     AnyPermission,
     Authorization,
     Context,
     Permission,
-    Policy,
+    Policy
 } from "@shared/util-auth";
 import * as TE from "fp-ts/TaskEither";
 import { ContentGatewayRoles } from "./ContentGatewayRoles";
@@ -114,6 +113,12 @@ const allowRemoveSchemaForOwn: Permission<SchemaEntity, void> = {
     policies: [allowForSelfPolicy()],
 };
 
+const allowSaveData = (): Permission<SaveDataParams, void> => ({
+    name: "Allows saving data",
+    operationName: SAVE_DATA,
+    policies: [allowAllPolicy()],
+});
+
 const allowSaveDataForOwn = (): Permission<SaveDataParams, void> => ({
     name: "Allows saving data for schemas that are owned by the current user",
     operationName: SAVE_DATA,
@@ -145,6 +150,7 @@ const userPermissions: AnyPermission[] = [
 ];
 
 const adminPermissions: AnyPermission[] = [
+    allowRegisterSchema,
     allowLoadSchemaStats,
     allowFindSchemaFor<any>(),
     allowRemoveSchema,
@@ -152,6 +158,7 @@ const adminPermissions: AnyPermission[] = [
     allowCreateApiKey,
     allowDeleteUser,
     allowDeleteApiKey,
+    allowSaveData(),
 ];
 
 const ANON_USER_ID = "1fa0fd73-03cb-4b3c-8350-47a2d7c27dc4";

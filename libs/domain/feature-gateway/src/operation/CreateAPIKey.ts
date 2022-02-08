@@ -1,9 +1,10 @@
-import { createLogger } from "@banklessdao/util-misc";
+import { UnknownError } from "@banklessdao/util-data";
+import { base64Encode, createLogger } from "@banklessdao/util-misc";
 import { Operation } from "@shared/util-auth";
 import * as bcrypt from "bcrypt";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
-import uuidAPIKey from "uuid-apikey";
+import { v4 as uuid } from "uuid";
 import {
     APIKey,
     APIKeyCreationError,
@@ -33,11 +34,15 @@ export const makeCreateAPIKey = (
             TE.Do,
             TE.bind("user", () => TE.of(owner)),
             TE.bind("key", () => {
-                const { uuid, apiKey } = uuidAPIKey.create();
-                return TE.of({
-                    id: uuid,
-                    secret: Buffer.from(apiKey).toString("base64"),
-                });
+                return TE.tryCatch(
+                    async () => {
+                        return {
+                            id: uuid(),
+                            secret: uuid(),
+                        };
+                    },
+                    (e) => new UnknownError(e)
+                );
             }),
             TE.bindW("hash", ({ key }) => {
                 return TE.tryCatch(
@@ -57,12 +62,6 @@ export const makeCreateAPIKey = (
                 });
                 return userRepository.updateUser(user);
             }),
-            TE.mapLeft(
-                () =>
-                    new APIKeyCreationError(
-                        "Could not create API key: user update failed."
-                    )
-            ),
             TE.map(({ key }) => {
                 return key;
             })

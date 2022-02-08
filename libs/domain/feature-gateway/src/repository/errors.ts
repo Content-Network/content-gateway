@@ -108,6 +108,15 @@ export class UserNotFoundError extends ProgramErrorBase<"UserNotFoundError"> {
     }
 }
 
+export class InvalidAPIKeyError extends ProgramErrorBase<"InvalidAPIKeyError"> {
+    constructor(message: string) {
+        super({
+            _tag: "InvalidAPIKeyError",
+            message: message,
+        });
+    }
+}
+
 export class APIKeyCreationError extends ProgramErrorBase<"APIKeyCreationError"> {
     constructor(message: string) {
         super({

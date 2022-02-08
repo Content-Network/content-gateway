@@ -48,7 +48,7 @@ export type SchemaRepository = {
     loadStats(): T.Task<Array<SchemaStat>>;
 };
 
-export type SchemaRepositoryStub = {
+export type SchemaRepositoryMock = {
     storage: Map<string, Schema>;
 } & SchemaRepository;
 
@@ -58,7 +58,7 @@ export type SchemaRepositoryStub = {
  */
 export const createSchemaRepositoryStub = (
     map: Map<string, SchemaEntity> = new Map()
-): SchemaRepositoryStub => {
+): SchemaRepositoryMock => {
     return {
         storage: map,
         register: (

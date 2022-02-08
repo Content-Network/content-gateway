@@ -6,7 +6,7 @@ import {
     UserDeletionError,
     UserNotFoundError,
     UserRepository,
-    UserUpdateError,
+    UserUpdateError
 } from "@domain/feature-gateway";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
@@ -52,10 +52,6 @@ export const createMongoUserRepository = async ({
                         new UserNotFoundError(`Couldn't find user by id ${id}`)
                     );
                 }
-            }),
-            TE.mapLeft((e) => {
-                logger.error(e);
-                return e;
             })
         );
     };
@@ -65,29 +61,6 @@ export const createMongoUserRepository = async ({
     ): TE.TaskEither<UserNotFoundError | DatabaseError, ContentGatewayUser> => {
         return pipe(
             wrapDbOperation(() => users.findOne({ "apiKeys.id": apiKeyId }))(),
-            TE.chainW((mongoUser) => {
-                if (mongoUser) {
-                    return TE.right(mongoUserToCGUser(mongoUser));
-                } else {
-                    return TE.left(
-                        new UserNotFoundError("Couldn't find user by API key.")
-                    );
-                }
-            }),
-            TE.mapLeft((e) => {
-                logger.error(e);
-                return e;
-            })
-        );
-    };
-
-    const findByApiKeyHash = (
-        hash: string
-    ): TE.TaskEither<UserNotFoundError | DatabaseError, ContentGatewayUser> => {
-        return pipe(
-            wrapDbOperation(async () => {
-                return users.findOne({ "apiKeys.hash": hash });
-            })(),
             TE.chainW((mongoUser) => {
                 if (mongoUser) {
                     return TE.right(mongoUserToCGUser(mongoUser));
@@ -183,7 +156,6 @@ export const createMongoUserRepository = async ({
     return {
         findById,
         findByApiKeyId,
-        findByApiKeyHash,
         createUser,
         updateUser,
         deleteUser,

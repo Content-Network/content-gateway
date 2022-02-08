@@ -67,19 +67,19 @@ export const createContentGateway = (deps: Deps): ContentGateway => {
     const { dataRepository, userRepository, schemaRepository, authorization } =
         deps;
 
-    const createAPIKey = makeCreateAPIKey(userRepository);
     const createUser = makeCreateUser(userRepository);
-    const deleteAPIKey = makeDeleteAPIKey(userRepository);
     const deleteUser = makeDeleteUser(userRepository);
+    const createAPIKey = makeCreateAPIKey(userRepository);
+    const deleteAPIKey = makeDeleteAPIKey(userRepository);
     const findSchemaForSaveData =
         makeFindSchemaFor<SaveDataRawParams>(schemaRepository);
     const findSchemaForRemoveSchema =
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         makeFindSchemaFor<any>(schemaRepository);
-    const loadSchemaStats = makeLoadSchemaStats(schemaRepository);
-    const saveData = makeSaveData(dataRepository);
     const registerSchema = makeRegisterSchema(schemaRepository);
     const removeSchema = makeRemoveSchema(schemaRepository);
+    const loadSchemaStats = makeLoadSchemaStats(schemaRepository);
+    const saveData = makeSaveData(dataRepository);
 
     const authFindSchemaForSaveData = authorize(
         findSchemaForSaveData,
@@ -94,13 +94,13 @@ export const createContentGateway = (deps: Deps): ContentGateway => {
     const authRemoveSchema = authorize(removeSchema, authorization);
 
     return {
-        createAPIKey: authorize(createAPIKey, authorization),
         createUser: authorize(createUser, authorization),
-        deleteAPIKey: authorize(deleteAPIKey, authorization),
         deleteUser: authorize(deleteUser, authorization),
-        loadSchemaStats: authorize(loadSchemaStats, authorization),
-        saveData: flow(authFindSchemaForSaveData, authSaveData),
+        createAPIKey: authorize(createAPIKey, authorization),
+        deleteAPIKey: authorize(deleteAPIKey, authorization),
         registerSchema: authorize(registerSchema, authorization),
+        loadSchemaStats: authorize(loadSchemaStats, authorization),
         removeSchema: flow(authFindSchemaForRemoveSchema, authRemoveSchema),
+        saveData: flow(authFindSchemaForSaveData, authSaveData),
     };
 };

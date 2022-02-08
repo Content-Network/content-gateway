@@ -19,5 +19,6 @@ export const makeRegisterSchema = (
 ): RegisterSchema => ({
     name: REGISTER_SCHEMA,
     execute: ({ schema, owner }: RegisterSchemaParams) =>
-        schemaRepository.register(schema, owner),
+        schemaRepository.register(schema, owner)
+    
 });

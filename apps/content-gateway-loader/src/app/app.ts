@@ -64,7 +64,7 @@ export const createApp = async (prisma: PrismaClient) => {
     const contentGatewayClient = createContentGatewayClientV1({
         adapter: createHTTPAdapterV1({
             apiURL: CGA_URL,
-            apiKey: CGA_API_KEY,
+            apiKeySecret: CGA_API_KEY,
         }),
     });
 

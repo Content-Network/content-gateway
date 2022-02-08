@@ -96,7 +96,6 @@ export const createMongoSchemaRepository = async ({
                         .toArray();
                 },
                 (e) => {
-                    logger.error(e);
                     return new SchemaNotFoundError(info);
                 }
             ),
