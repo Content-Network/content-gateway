@@ -3,6 +3,7 @@ import * as TE from "fp-ts/lib/TaskEither";
 import * as E from "fp-ts/lib/Either";
 import { MaintenanceJob, MaintenanceJobError } from "../..";
 import * as t from "io-ts";
+import { Db } from "mongodb";
 // @ts-expect-error There are no type definitions for this package :'(
 import * as DigestFetch from "digest-fetch";
 
@@ -11,13 +12,13 @@ import * as DigestFetch from "digest-fetch";
  * enacts those recommendations
  */
 export const createIndexCreationJob = (
-    atlasApiInfo: AtlasApiInfo
+    atlasApiInfo: AtlasApiInfo,
+    db: Db
 ): MaintenanceJob => {
     const runIndexCreation = (): TE.TaskEither<MaintenanceJobError, void> => {
         return pipe(
             _queryIndexSuggestions(atlasApiInfo),
-            TE.chain(_chooseIndexesToAdd),
-            TE.chain(_addIndexes)
+            TE.chain(_addIndexes(db))
         );
     };
 
@@ -56,14 +57,19 @@ const IndexSuggestionCodec = t.strict({
     ),
 });
 
-type IndexSuggestion = t.TypeOf<typeof IndexSuggestionCodec>;
+export type IndexSuggestions = t.TypeOf<typeof IndexSuggestionCodec>;
 
+// TODO: remove hard coded process Id with automatic discovery of processes
 const makeSuggestedIndexUrl = (atlasApiInfo: AtlasApiInfo) =>
     `https://cloud.mongodb.com/api/atlas/v1.0/groups/${atlasApiInfo.projectId}/processes/${atlasApiInfo.processId}/performanceAdvisor/suggestedIndexes`;
 
+/**
+ * Retrieves and verifies the request according to these specs
+ * https://docs.atlas.mongodb.com/reference/api/pa-suggested-indexes-get-all/
+ */
 export function _queryIndexSuggestions(
     atlasApiInfo: AtlasApiInfo
-): TE.TaskEither<MaintenanceJobError, IndexSuggestion> {
+): TE.TaskEither<MaintenanceJobError, IndexSuggestions> {
     const client = new DigestFetch(
         atlasApiInfo.publicKey,
         atlasApiInfo.privateKey,
@@ -81,7 +87,7 @@ export function _queryIndexSuggestions(
 
     const parseResponse = (
         res: Response
-    ): TE.TaskEither<MaintenanceJobError, IndexSuggestion> => {
+    ): TE.TaskEither<MaintenanceJobError, IndexSuggestions> => {
         return TE.tryCatch(
             async () => {
                 const resJson = await res.json();
@@ -92,7 +98,7 @@ export function _queryIndexSuggestions(
                              resJson
                          )}`
                     );
-                return resJson as IndexSuggestion;
+                return resJson as IndexSuggestions;
             },
             (e) => new MaintenanceJobError(new Error(String(e)))
         );
@@ -100,14 +106,41 @@ export function _queryIndexSuggestions(
     return pipe(fetch(), TE.chain(parseResponse));
 }
 
-export function _chooseIndexesToAdd(
-    indexSuggestions: IndexSuggestion
-): TE.TaskEither<MaintenanceJobError, string[]> {
-    throw new Error("Function not implemented.");
-}
+export const _addIndexes =
+    (db: Db) =>
+    (
+        indexSuggestions: IndexSuggestions
+    ): TE.TaskEither<MaintenanceJobError, void> => {
+        const suggestions = indexSuggestions.suggestedIndexes;
 
-export function _addIndexes(
-    indexes: string[]
-): TE.TaskEither<MaintenanceJobError, void> {
-    throw new Error("Function not implemented.");
-}
+        const addIndex = (
+            indexSuggestion: typeof suggestions[number]
+        ): TE.TaskEither<MaintenanceJobError, void> => {
+            return TE.tryCatch(
+                async () => {
+                    await db
+                        .createIndex(
+                            indexSuggestion.namespace,
+                            indexSuggestion.index
+                        )
+                        .catch((r) => {
+                            throw new Error(r);
+                        });
+                    return Promise.resolve();
+                },
+                (e) => {
+                    return e instanceof Error
+                        ? new MaintenanceJobError(e)
+                        : new MaintenanceJobError(new Error(String(e)));
+                }
+            );
+        };
+
+        return pipe(
+            suggestions,
+            TE.traverseArray(addIndex),
+            TE.map(() => {
+                return;
+            }) // turn void[] to void cause ts
+        );
+    };
