@@ -8,7 +8,7 @@ import {
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as TO from "fp-ts/TaskOption";
-import * as t from "io-ts";
+
 import { DateTime, DurationLike } from "luxon";
 import { Logger } from "tslog";
 import {
@@ -36,7 +36,7 @@ export abstract class DataLoaderBase<R, M> implements DataLoader<M> {
     // protected
     protected logger: Logger = createLogger(this.constructor.name);
 
-    protected abstract codec: t.Type<R>;
+
     protected abstract type: ClassType<M>;
     protected abstract batchSize: number;
     protected abstract cadenceConfig: CadenceConfig;
