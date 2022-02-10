@@ -27,47 +27,47 @@ export type OutboundDataAdapter = {
 };
 
 type Params = {
-    apiURL: string;
-    apiKeySecret: string;
+    apiUrl: string;
+    apiKey: string;
 };
 
 export const createHTTPAdapterV1 = ({
-    apiURL,
-    apiKeySecret,
+    apiUrl,
+    apiKey,
 }: Params): OutboundDataAdapter => {
     return {
         register: (schema: SchemaJson) => {
             return post({
-                url: `${apiURL}/api/v1/rest/schema/`,
+                url: `${apiUrl}/api/v1/rest/schema/`,
                 input: schema,
                 codec: t.UnknownRecord,
                 config: {
                     headers: {
-                        "X-Api-Key": apiKeySecret,
+                        "X-Api-Key": apiKey,
                     },
                 },
             });
         },
         remove: (info: SchemaInfo) => {
             return del({
-                url: `${apiURL}/api/v1/rest/schema/`,
+                url: `${apiUrl}/api/v1/rest/schema/`,
                 input: info,
                 codec: t.UnknownRecord,
                 config: {
                     headers: {
-                        "X-Api-Key": apiKeySecret,
+                        "X-Api-Key": apiKey,
                     },
                 },
             });
         },
         send: (payload: JsonBatchPayload) => {
             return post({
-                url: `${apiURL}/api/v1/rest/data/receive-batch`,
+                url: `${apiUrl}/api/v1/rest/data/receive`,
                 input: payload,
                 codec: t.UnknownRecord,
                 config: {
                     headers: {
-                        "X-Api-Key": apiKeySecret,
+                        "X-Api-Key": apiKey,
                     },
                 },
             });

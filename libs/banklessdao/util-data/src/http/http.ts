@@ -6,13 +6,13 @@ import * as t from "io-ts";
 import {
     CodecValidationError,
     GenericProgramError,
-    programErrorCodec,
+    programErrorCodec
 } from "..";
 import {
     DataTransferError,
     GenericDataTransferError,
     HTTPDataTransferError,
-    UnknownDataTransferError,
+    UnknownDataTransferError
 } from "./errors";
 
 const handleError = (error: unknown): DataTransferError => {
@@ -45,6 +45,7 @@ const decodeResponse = <T>(codec: t.Type<T>) => {
             pipe(
                 codec.decode(data),
                 E.mapLeft((e: t.Errors) => {
+                    console.log(`=== data: ${data} (${typeof data}) ===`);
                     return new CodecValidationError(
                         `Decoding HTTP response failed.`,
                         e

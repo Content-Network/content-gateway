@@ -2,7 +2,7 @@ import {
     createContentGatewayClient,
     createHTTPAdapterV1
 } from "@banklessdao/content-gateway-sdk";
-import { createLogger, programError } from "@banklessdao/util-misc";
+import { createLogger } from "@banklessdao/util-misc";
 import { schemaInfoToString } from "@banklessdao/util-schema";
 import { PrismaClient } from "@cgl/prisma";
 import { createLoaderRegistry } from "@domain/feature-loaders";
@@ -24,47 +24,42 @@ import { withMessage } from "io-ts-types";
 import { join } from "path";
 import { createJobRepository } from "../repository/PrismaJobRepository";
 
-export const createApp = async (prisma: PrismaClient) => {
-    const CGA_API_KEY =
-        process.env.CGA_API_KEY || programError("You must specify CGA_API_KEY");
-    const CGA_URL =
-        process.env.CGA_URL || programError("You must specify CGA_URL");
-    const YOUTUBE_API_KEY =
-        process.env.YOUTUBE_API_KEY ||
-        programError("You must specify YOUTUBE_API_KEY");
-    const GHOST_API_KEY =
-        process.env.GHOST_API_KEY ||
-        programError("You must specify GHOST_API_KEY");
-    const SNAPSHOT_SPACES =
-        process.env.SNAPSHOT_SPACES?.split(",") ||
-        programError("You must specify SNAPSHOT_SPACES");
-    const env =
-        process.env.NODE_ENV ?? programError("You must specify NODE_ENV");
+export type AppParams = {
+    nodeEnv: string;
+    resetDb: boolean;
+    addFrontend: boolean;
+    prisma: PrismaClient;
+    cgaAPIKey: string;
+    cgaURL: string;
+    youtubeAPIKey: string;
+    ghostAPIKey: string;
+    snapshotSpaces: string[];
+};
 
-    const isProd = env === "production";
-    const resetDb = process.env.RESET_DB === "true";
+export const createApp = async (appParams: AppParams) => {
+    const { prisma, nodeEnv } = appParams;
+    const isProd = nodeEnv === "production";
     const logger = createLogger("ContentGatewayLoaderApp");
-    const addFrontend = process.env.ADD_FRONTEND === "true";
 
-    if (resetDb) {
+    if (appParams.resetDb) {
         logger.info("Database reset requested. Resetting...");
         await prisma.jobLog.deleteMany({});
         await prisma.jobSchedule.deleteMany({});
     }
 
-    logger.info(`Running in ${env} mode`);
+    logger.info(`Running in ${nodeEnv} mode`);
 
     const loaderRegistry = createLoaderRegistry({
-        ghostApiKey: GHOST_API_KEY,
-        youtubeApiKey: YOUTUBE_API_KEY,
-        snapshotSpaces: SNAPSHOT_SPACES,
+        ghostApiKey: appParams.ghostAPIKey,
+        youtubeApiKey: appParams.youtubeAPIKey,
+        snapshotSpaces: appParams.snapshotSpaces,
     });
     const jobRepository = createJobRepository(prisma);
 
     const contentGatewayClient = createContentGatewayClient({
         adapter: createHTTPAdapterV1({
-            apiURL: CGA_URL,
-            apiKeySecret: CGA_API_KEY,
+            apiUrl: appParams.cgaURL,
+            apiKey: appParams.cgaAPIKey,
         }),
     });
 
@@ -298,7 +293,7 @@ export const createApp = async (prisma: PrismaClient) => {
         __dirname,
         "../content-gateway-loader-frontend"
     );
-    if (addFrontend || isProd) {
+    if (appParams.addFrontend || isProd) {
         app.use(express.static(clientBuildPath));
         app.get("*", (_, response) => {
             response.sendFile(join(clientBuildPath, "index.html"));

@@ -70,7 +70,7 @@ export const createDefaultClient = ({
     apiURL: string;
 }) => {
     return createContentGatewayClient({
-        adapter: createHTTPAdapterV1({ apiURL, apiKeySecret }),
+        adapter: createHTTPAdapterV1({ apiUrl: apiURL, apiKey: apiKeySecret }),
     });
 };
 

@@ -332,7 +332,7 @@ const sendResponse = <O>(res: express.Response, operation: string) =>
             return T.of(undefined);
         },
         (ctx: Context<O>) => {
-            res.status(200).send(ctx.data);
+            res.status(200).send(ctx.data === undefined ? {} : ctx.data);
             return T.of(undefined);
         }
     );

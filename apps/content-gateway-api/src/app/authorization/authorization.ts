@@ -161,6 +161,18 @@ const adminPermissions: AnyPermission[] = [
     allowSaveData(),
 ];
 
+const rootPermissions: AnyPermission[] = [
+    allowRegisterSchema,
+    allowLoadSchemaStats,
+    allowFindSchemaFor<any>(),
+    allowRemoveSchema,
+    allowCreateUser,
+    allowCreateApiKey,
+    allowDeleteUser,
+    allowDeleteApiKey,
+    allowSaveData(),
+];
+
 const ANON_USER_ID = "1fa0fd73-03cb-4b3c-8350-47a2d7c27dc4";
 
 export const ANON_USER: ContentGatewayUser = {
@@ -183,6 +195,10 @@ export const authorization: Authorization = {
         [ContentGatewayRoles.admin]: {
             name: ContentGatewayRoles.admin,
             permissions: adminPermissions,
+        },
+        [ContentGatewayRoles.root]: {
+            name: ContentGatewayRoles.root,
+            permissions: rootPermissions,
         },
     },
 };

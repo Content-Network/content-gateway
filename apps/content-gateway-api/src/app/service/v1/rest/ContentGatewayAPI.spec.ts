@@ -1,7 +1,7 @@
 import {
     base64Decode,
     base64Encode,
-    extractRight
+    extractRight,
 } from "@banklessdao/util-misc";
 import {
     createSchemaFromClass,
@@ -9,7 +9,7 @@ import {
     Nested,
     NonEmptyProperty,
     RequiredObjectRef,
-    schemaInfoToString
+    schemaInfoToString,
 } from "@banklessdao/util-schema";
 import {
     APIKey,
@@ -23,13 +23,14 @@ import {
     DataRepository,
     SchemaEntity,
     SchemaRepository,
-    UserRepository
+    UserRepository,
 } from "@domain/feature-gateway";
 import { DEFAULT_CURSOR } from "@shared/util-loaders";
 import * as bcrypt from "bcrypt";
 import * as express from "express";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
+import { ObjectId } from "mongodb";
 import * as request from "supertest";
 import { v4 as uuid } from "uuid";
 import { KeyCodec } from ".";
@@ -91,9 +92,9 @@ describe("Given a content gateway api", () => {
             id: uuid(),
             secret: "hey",
         };
-        
+
         apiKey = base64Encode(JSON.stringify(apiKeyObj));
-        
+
         adminUser = {
             id: uuid(),
             name: "admin",
@@ -293,6 +294,31 @@ describe("Given a content gateway api", () => {
                 E.chain(APIKeyCodec.decode),
                 extractRight
             );
+            // const id = uuid();
+            // const secret = uuid();
+            // const k = {
+            //     id,
+            //     secret,
+            // };
+            // console.log(k);
+            // console.log(
+            //     `api key: ${base64Encode(
+            //         JSON.stringify(k)
+            //     )}`
+            // );
+            // const rootUser = {
+            //     id: new ObjectId().toString(),
+            //     name: "root",
+            //     roles: ["root"],
+            //     apiKeys: [
+            //         {
+            //             id,
+            //             hash: bcrypt.hashSync(secret, 10),
+            //         },
+            //     ],
+            // };
+            // console.log(rootUser);
+            // console.log(`user: ${base64Encode(JSON.stringify(rootUser))}`);
             expect(key).toBeTruthy();
         });
 
