@@ -113,6 +113,10 @@ describe("Given a Mongo schema storage", () => {
         });
     });
 
+    beforeEach(async () => {
+        await schemas.deleteMany({});
+    });
+
     afterAll(async () => {
         await schemas.drop();
         await users.drop();

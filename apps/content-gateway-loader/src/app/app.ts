@@ -1,5 +1,5 @@
 import {
-    createContentGatewayClientV1,
+    createContentGatewayClient,
     createHTTPAdapterV1
 } from "@banklessdao/content-gateway-sdk";
 import { createLogger, programError } from "@banklessdao/util-misc";
@@ -61,7 +61,7 @@ export const createApp = async (prisma: PrismaClient) => {
     });
     const jobRepository = createJobRepository(prisma);
 
-    const contentGatewayClient = createContentGatewayClientV1({
+    const contentGatewayClient = createContentGatewayClient({
         adapter: createHTTPAdapterV1({
             apiURL: CGA_URL,
             apiKeySecret: CGA_API_KEY,

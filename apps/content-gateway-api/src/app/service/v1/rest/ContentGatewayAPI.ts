@@ -221,7 +221,6 @@ export const generateContentGatewayAPIV1 = async ({
                             return JSON.parse(base64Decode(key.key));
                         }),
                         E.chainW((key) => {
-                            console.log(`key: ${key}`);
                             return APIKeyCodec.decode(key);
                         }),
                         mapCodecValidationError(
@@ -333,7 +332,6 @@ const sendResponse = <O>(res: express.Response, operation: string) =>
             return T.of(undefined);
         },
         (ctx: Context<O>) => {
-            console.log(`=== ctx: ${ctx.data}`);
             res.status(200).send(ctx.data);
             return T.of(undefined);
         }
