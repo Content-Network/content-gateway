@@ -1,7 +1,8 @@
 import { MaintenanceJob } from "./MaintenanceJob";
-import { ToadScheduler, SimpleIntervalJob, Task } from "toad-scheduler";
+import { ToadScheduler} from "toad-scheduler";
 import { pipe } from "fp-ts/lib/function";
-import { toToadJob } from ".";
+import { makeToToadJob } from ".";
+import { Logger } from "tslog";
 
 export interface Maintainer {
     readonly jobs: MaintenanceJob[];
@@ -10,8 +11,11 @@ export interface Maintainer {
 
 export const attachJobs = (
     jobs: MaintenanceJob[],
-    scheduler: ToadScheduler
+    scheduler: ToadScheduler,
+    logger: Logger
 ) => {
+    const toToadJob = makeToToadJob(logger);
+
     jobs.forEach((job) => {
         pipe(job, toToadJob, scheduler.addSimpleIntervalJob);
     });
