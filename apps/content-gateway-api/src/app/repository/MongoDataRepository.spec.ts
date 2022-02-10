@@ -3,7 +3,7 @@ import { GenericProgramError } from "@banklessdao/util-data";
 import {
     extractLeft,
     extractRight,
-    programError
+    programError,
 } from "@banklessdao/util-misc";
 import {
     createSchemaFromClass,
@@ -11,26 +11,30 @@ import {
     Nested,
     NonEmptyProperty,
     OptionalObjectRef,
-    RequiredObjectRef,
     SchemaInfo,
-    schemaInfoToString
+    schemaInfoToString,
 } from "@banklessdao/util-schema";
 import {
+    ContentGatewayUser,
     DataRepository,
     Entry,
     FilterType,
     SchemaRepository,
     SchemaValidationError,
-    SinglePayload
+    SinglePayload,
+    UserRepository,
 } from "@domain/feature-gateway";
-import * as O from "fp-ts/lib/Option";
-import { Db, MongoClient } from "mongodb";
+import * as E from "fp-ts/Either";
+import * as O from "fp-ts/Option";
+import { Collection, Db, MongoClient } from "mongodb";
 import { v4 as uuid } from "uuid";
 import {
     createMongoDataRepository,
     createMongoSchemaRepository,
-    DocumentData
+    createMongoUserRepository,
+    DocumentData,
 } from ".";
+import { MongoUser } from "./mongo/MongoUser";
 
 const addressInfo = {
     namespace: "test",
@@ -68,26 +72,43 @@ describe("Given a Mongo data storage", () => {
     let mongoClient: MongoClient;
     let db: Db;
     let schemaRepository: SchemaRepository;
+    let userRepository: UserRepository;
+    let users: Collection<MongoUser>;
+    let user: ContentGatewayUser;
+
+    const collName = uuid();
+    const usersCollName = uuid();
 
     beforeAll(async () => {
         mongoClient = new MongoClient(url);
         await mongoClient.connect();
-        db = mongoClient.db(dbName);
-        await db.dropDatabase();
 
+        db = mongoClient.db(dbName);
+        users = await db.createCollection<MongoUser>(usersCollName);
+        userRepository = await createMongoUserRepository({
+            db,
+            collName: usersCollName,
+        });
+        user = extractRight(
+            await userRepository.createUser("Arnold", ["terminator"])()
+        );
         schemaRepository = await createMongoSchemaRepository({
-            dbName,
-            mongoClient,
+            db,
+            collName,
+            usersCollName,
         });
 
         target = createMongoDataRepository({
-            dbName,
-            mongoClient,
+            db,
             schemaRepository,
         });
     });
 
     afterAll(async () => {
+        await db.dropCollection(collName);
+        const schemas = await schemaRepository.findAll()();
+        await Promise.all(schemas.map(schemaRepository.remove));
+        await users.drop();
         await mongoClient.close();
     });
 
@@ -103,7 +124,7 @@ describe("Given a Mongo data storage", () => {
             info: info,
         };
 
-        await schemaRepository.register(result)();
+        await schemaRepository.register(result, user)();
         return result;
     };
 
@@ -114,7 +135,13 @@ describe("Given a Mongo data storage", () => {
     });
 
     const storeRecord = async (payload: SinglePayload): Promise<Entry> => {
-        await target.store(payload)();
+        const result = await target.store({
+            info: payload.info,
+            records: [payload.record],
+        })();
+        if (E.isLeft(result)) {
+            throw result.left;
+        }
         const { info, record } = payload;
         const coll = db.collection<DocumentData>(schemaInfoToString(info));
         const entry =
@@ -209,10 +236,12 @@ describe("Given a Mongo data storage", () => {
             const result = extractLeft(
                 await target.store({
                     info: tempSchema.info,
-                    record: {
-                        name: "Some Street 2",
-                        num: 1,
-                    },
+                    records: [
+                        {
+                            name: "Some Street 2",
+                            num: 1,
+                        },
+                    ],
                 })()
             );
 
@@ -235,10 +264,12 @@ describe("Given a Mongo data storage", () => {
             const result = extractLeft(
                 await target.store({
                     info: tempSchema.info,
-                    record: {
-                        id: uuid(),
-                        num: 1,
-                    },
+                    records: [
+                        {
+                            id: uuid(),
+                            num: 1,
+                        },
+                    ],
                 })()
             ) as SchemaValidationError;
 
@@ -302,18 +333,18 @@ describe("Given a Mongo data storage", () => {
             const tempSchema = await prepareRandomSchema(version);
             const info = tempSchema.info;
             const oldRecord = {
-                info: info,
-                record: {
-                    id: uuid(),
-                    name: "Some Street 2",
-                    num: 1,
-                },
+                id: uuid(),
+                name: "Some Street 2",
+                num: 1,
             };
-            await target.store(oldRecord)();
+            await target.store({
+                info,
+                records: [oldRecord],
+            })();
 
             const newRecordsWithDuplicate = [
                 {
-                    ...oldRecord.record,
+                    ...oldRecord,
                     name: "New Street 2",
                 },
                 {
@@ -323,7 +354,7 @@ describe("Given a Mongo data storage", () => {
                 },
             ];
 
-            await target.storeBulk({
+            await target.store({
                 info: info,
                 records: newRecordsWithDuplicate,
             })();
@@ -497,11 +528,13 @@ describe("Given a Mongo data storage", () => {
             });
             await target.store({
                 info: tempSchema.info,
-                record: {
-                    id: uuid(),
-                    name: "Hello World B",
-                    num: 3,
-                },
+                records: [
+                    {
+                        id: uuid(),
+                        name: "Hello World B",
+                        num: 3,
+                    },
+                ],
             })();
 
             const result = extractRight(
@@ -543,11 +576,13 @@ describe("Given a Mongo data storage", () => {
 
             await target.store({
                 info: tempSchema.info,
-                record: {
-                    id: id1,
-                    name: "Hello World B",
-                    num: 1,
-                },
+                records: [
+                    {
+                        id: id1,
+                        name: "Hello World B",
+                        num: 1,
+                    },
+                ],
             })();
 
             const result = extractRight(
@@ -589,11 +624,13 @@ describe("Given a Mongo data storage", () => {
 
             await target.store({
                 info: tempSchema.info,
-                record: {
-                    id: id1,
-                    name: "Hello World B",
-                    num: 1,
-                },
+                records: [
+                    {
+                        id: id1,
+                        name: "Hello World B",
+                        num: 1,
+                    },
+                ],
             })();
 
             const result = extractRight(
@@ -631,20 +668,24 @@ describe("Given a Mongo data storage", () => {
 
             await target.store({
                 info: tempSchema.info,
-                record: {
-                    id: id0,
-                    name: "Hello World A",
-                    num: 1,
-                },
+                records: [
+                    {
+                        id: id0,
+                        name: "Hello World A",
+                        num: 1,
+                    },
+                ],
             })();
 
             await target.store({
                 info: tempSchema.info,
-                record: {
-                    id: id1,
-                    name: "Hello World B",
-                    num: 1,
-                },
+                records: [
+                    {
+                        id: id1,
+                        name: "Hello World B",
+                        num: 1,
+                    },
+                ],
             })();
 
             const result = extractRight(
@@ -732,8 +773,8 @@ describe("Given a Mongo data storage", () => {
                     name: "User Joe",
                     num: 27,
                     zip: {
-                        num: 27
-                    }
+                        num: 27,
+                    },
                 },
             });
 
@@ -744,8 +785,8 @@ describe("Given a Mongo data storage", () => {
                     name: "User Jane",
                     num: 18,
                     zip: {
-                        num: 18
-                    }
+                        num: 18,
+                    },
                 },
             });
 
@@ -756,8 +797,8 @@ describe("Given a Mongo data storage", () => {
                     name: "Frank",
                     num: 54,
                     zip: {
-                        num: 54
-                    }
+                        num: 54,
+                    },
                 },
             });
 
@@ -768,8 +809,8 @@ describe("Given a Mongo data storage", () => {
                     name: "User Edith",
                     num: 45,
                     zip: {
-                        num: 45
-                    }
+                        num: 45,
+                    },
                 },
             });
 
@@ -806,8 +847,8 @@ describe("Given a Mongo data storage", () => {
                     name: "User Joe",
                     num: 27,
                     zip: {
-                        num: 27
-                    }
+                        num: 27,
+                    },
                 },
             });
 
@@ -818,8 +859,8 @@ describe("Given a Mongo data storage", () => {
                     name: "User Jane",
                     num: 18,
                     zip: {
-                        num: 18
-                    }
+                        num: 18,
+                    },
                 },
             });
 
@@ -830,8 +871,8 @@ describe("Given a Mongo data storage", () => {
                     name: "Frank",
                     num: 54,
                     zip: {
-                        num: 54
-                    }
+                        num: 54,
+                    },
                 },
             });
 
@@ -842,8 +883,8 @@ describe("Given a Mongo data storage", () => {
                     name: "User Edith",
                     num: 45,
                     zip: {
-                        num: 45
-                    }
+                        num: 45,
+                    },
                 },
             });
 
@@ -887,7 +928,7 @@ describe("Given a Mongo data storage", () => {
             expect(result.entries.map((r) => r.record.num)).toEqual([45]);
         });
 
-        //* This is a regresssion that happened because we tried to
+        //* This is a regression that happened because we tried to
         //* 👇 order by `data._id` by default (which doesn't exist)
         it("Then it returns the records in same order with different limits", async () => {
             const tempSchema = await prepareRandomSchema(uuid());
