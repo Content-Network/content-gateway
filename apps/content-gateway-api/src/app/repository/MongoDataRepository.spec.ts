@@ -3,14 +3,16 @@ import { GenericProgramError } from "@banklessdao/util-data";
 import {
     extractLeft,
     extractRight,
-    programError
+    programError,
 } from "@banklessdao/util-misc";
 import {
     createSchemaFromClass,
     Data,
+    Nested,
     NonEmptyProperty,
+    OptionalObjectRef,
     SchemaInfo,
-    schemaInfoToString
+    schemaInfoToString,
 } from "@banklessdao/util-schema";
 import {
     ContentGatewayUser,
@@ -20,7 +22,7 @@ import {
     SchemaRepository,
     SchemaValidationError,
     SinglePayload,
-    UserRepository
+    UserRepository,
 } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
 import * as O from "fp-ts/Option";
@@ -30,7 +32,7 @@ import {
     createMongoDataRepository,
     createMongoSchemaRepository,
     createMongoUserRepository,
-    DocumentData
+    DocumentData,
 } from ".";
 import { MongoUser } from "./mongo/MongoUser";
 
@@ -39,6 +41,12 @@ const addressInfo = {
     name: "Address",
     version: "V1",
 };
+
+@Nested()
+class Zip {
+    @NonEmptyProperty()
+    num: number;
+}
 
 @Data({
     info: addressInfo,
@@ -50,6 +58,8 @@ class Address {
     name: string;
     @NonEmptyProperty()
     num: number;
+    @OptionalObjectRef(Zip)
+    zip?: Zip;
 }
 
 const url =
@@ -153,6 +163,9 @@ describe("Given a Mongo data storage", () => {
                     id: id,
                     name: `Some Street ${i}`,
                     num: i,
+                    zip: {
+                        num: Math.round(Math.random() * 100),
+                    },
                 },
             };
             result.push(await storeRecord(address));
@@ -759,6 +772,9 @@ describe("Given a Mongo data storage", () => {
                     id: uuid(),
                     name: "User Joe",
                     num: 27,
+                    zip: {
+                        num: 27,
+                    },
                 },
             });
 
@@ -768,6 +784,9 @@ describe("Given a Mongo data storage", () => {
                     id: uuid(),
                     name: "User Jane",
                     num: 18,
+                    zip: {
+                        num: 18,
+                    },
                 },
             });
 
@@ -777,6 +796,9 @@ describe("Given a Mongo data storage", () => {
                     id: uuid(),
                     name: "Frank",
                     num: 54,
+                    zip: {
+                        num: 54,
+                    },
                 },
             });
 
@@ -786,6 +808,9 @@ describe("Given a Mongo data storage", () => {
                     id: uuid(),
                     name: "User Edith",
                     num: 45,
+                    zip: {
+                        num: 45,
+                    },
                 },
             });
 
@@ -800,7 +825,7 @@ describe("Given a Mongo data storage", () => {
                         },
                     ],
                     orderBy: {
-                        fieldPath: "num",
+                        fieldPath: "zip.num",
                         direction: "asc",
                     },
                     info: tempSchema.info,
@@ -821,6 +846,9 @@ describe("Given a Mongo data storage", () => {
                     id: uuid(),
                     name: "User Joe",
                     num: 27,
+                    zip: {
+                        num: 27,
+                    },
                 },
             });
 
@@ -830,6 +858,9 @@ describe("Given a Mongo data storage", () => {
                     id: uuid(),
                     name: "User Jane",
                     num: 18,
+                    zip: {
+                        num: 18,
+                    },
                 },
             });
 
@@ -839,6 +870,9 @@ describe("Given a Mongo data storage", () => {
                     id: uuid(),
                     name: "Frank",
                     num: 54,
+                    zip: {
+                        num: 54,
+                    },
                 },
             });
 
@@ -848,6 +882,9 @@ describe("Given a Mongo data storage", () => {
                     id: uuid(),
                     name: "User Edith",
                     num: 45,
+                    zip: {
+                        num: 45,
+                    },
                 },
             });
 
@@ -862,7 +899,7 @@ describe("Given a Mongo data storage", () => {
                         },
                     ],
                     orderBy: {
-                        fieldPath: "num",
+                        fieldPath: "zip.num",
                         direction: "asc",
                     },
                     info: tempSchema.info,
@@ -881,7 +918,7 @@ describe("Given a Mongo data storage", () => {
                         },
                     ],
                     orderBy: {
-                        fieldPath: "num",
+                        fieldPath: "zip.num",
                         direction: "asc",
                     },
                     info: tempSchema.info,

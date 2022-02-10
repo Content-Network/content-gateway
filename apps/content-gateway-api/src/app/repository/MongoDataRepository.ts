@@ -3,7 +3,7 @@ import { coercePrimitive, createLogger } from "@banklessdao/util-misc";
 import {
     Schema,
     SchemaInfo,
-    schemaInfoToString
+    schemaInfoToString,
 } from "@banklessdao/util-schema";
 import {
     Cursor,
@@ -19,7 +19,7 @@ import {
     OrderDirection,
     Query,
     QueryError,
-    SchemaRepository
+    SchemaRepository,
 } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
 import { absurd, pipe } from "fp-ts/lib/function";
@@ -30,8 +30,9 @@ import {
     Filter as MongoFilter,
     ObjectId,
     SortDirection,
-    WithId
+    WithId,
 } from "mongodb";
+import * as objectPath from "object-path";
 import { DocumentData, wrapDbOperation, wrapDbOperationWithParams } from ".";
 
 type Deps = {
@@ -324,16 +325,20 @@ export const createMongoDataRepository = ({
                     typeof lastRecord !== "undefined" &&
                     entries.length === limit
                 ) {
-                    const lr = lastRecord as WithId<DocumentData>;
+                    const fixedLastRecord = lastRecord as WithId<DocumentData>;
                     const nextCursor: Cursor = {
-                        _id: lr._id.toString(),
+                        _id: fixedLastRecord._id.toString(),
                         dir: dir,
                     };
-                    // TODO: 👇 This won't work with nested fields (eg: a.b)
                     if (orderBy?.fieldPath && orderBy.fieldPath !== "_id") {
                         nextCursor.custom = {
                             fieldPath: `data.${orderBy.fieldPath}`,
-                            value: String(lr.data[orderBy.fieldPath]),
+                            value: String(
+                                objectPath.get(
+                                    fixedLastRecord.data,
+                                    orderBy.fieldPath
+                                )
+                            ),
                         };
                     }
                     result.nextPageToken = encodeCursor(nextCursor);
