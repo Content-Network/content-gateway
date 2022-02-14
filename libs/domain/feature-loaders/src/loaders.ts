@@ -10,6 +10,7 @@ import { createBanklessPodcastLoader } from "./bankless-podcast";
 import { createBANKTransactionLoader } from "./bankless-token/BanklessTokenTransactionLoader";
 import { createBANKTransferLoader } from "./bankless-token/BanklessTokenTransferLoader";
 import { createBanklessWebsitePostLoader } from "./bankless-website/BanklessGhostPostLoader";
+import { createDiscordLoader } from "./discord/DiscordLoader";
 import { createENSDomainLoader } from "./ens/ENSLoader";
 import { createPOAPEventLoader } from "./poap-token/POAPEventLoader";
 import { createPOAPTransferLoader } from "./poap-token/POAPTransferLoader";
@@ -19,6 +20,8 @@ export type LoadersConfig = {
     youtubeApiKey: string;
     ghostApiKey: string;
     snapshotSpaces: string[];
+    discordBotToken: string;
+    discordChannel: string;
 };
 
 /**
@@ -26,6 +29,7 @@ export type LoadersConfig = {
  */
 export const createLoaders = (apiKeys: LoadersConfig) =>
     [
+        // createDiscordLoader(apiKeys.discordBotToken, apiKeys.discordChannel),
         createBanklessAcademyCourseLoader(),
         createBountyLoader(),
         createBanklessPodcastLoader(apiKeys.youtubeApiKey),
@@ -37,6 +41,6 @@ export const createLoaders = (apiKeys: LoadersConfig) =>
         createPOAPTokenLoader(),
         createPOAPAccountLoader(),
         createPOAPTransferLoader(),
-        createSnapshotProposalLoader(["banklessvault.eth"]), // TODO: remove magic string
+        createSnapshotProposalLoader(apiKeys.snapshotSpaces),
         createENSDomainLoader(),
     ] as DataLoader<unknown>[];
