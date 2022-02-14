@@ -26,7 +26,7 @@ export const createIndexCreationJob = (
         run: runIndexCreation,
         id: "CreateIndexes",
         schedule: {
-            seconds: 1,
+            hours: 1,
         },
     };
 };
