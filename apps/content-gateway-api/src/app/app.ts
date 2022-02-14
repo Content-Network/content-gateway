@@ -8,7 +8,7 @@ import {
     createContentGateway,
     DataRepository,
 } from "@domain/feature-gateway";
-import { createLogger, programError } from "@banklessdao/util-misc";
+import { createLogger, programError, verifiedEnvVar } from "@banklessdao/util-misc";
 import * as express from "express";
 import { graphqlHTTP } from "express-graphql";
 import * as g from "graphql";
@@ -25,6 +25,9 @@ import { createMongoDataRepository, createMongoSchemaRepository } from "./";
 import { liveLoaders } from "./live-loaders";
 import { LiveLoader } from "./live-loaders/LiveLoader";
 import { generateContentGatewayAPIV1 } from "./service";
+import { createJobs, JobConfig } from "./maintenance/jobs/jobs";
+import { createMongoMaintainer } from "./repository/MongoMaintainer";
+import { ToadScheduler } from "toad-scheduler";
 
 export type ApplicationContext = {
     logger: Logger;
@@ -51,6 +54,13 @@ export const createApp = async ({
     const isProd = env === "production";
     const resetDb = process.env.RESET_DB === "true";
     const addFrontend = process.env.ADD_FRONTEND === "true";
+
+    const atlasApiInfo = {
+        publicKey: verifiedEnvVar("ATLAS_PUBLIC_KEY"),
+        privateKey: verifiedEnvVar("ATLAS_PRIVATE_KEY"),
+        projectId: verifiedEnvVar("ATLAS_PROJECT_ID"),
+        processId: verifiedEnvVar("ATLAS_PROCESS_ID"),
+    }
 
     const logger = createLogger("ContentGatewayAPIApp");
 
@@ -79,6 +89,12 @@ export const createApp = async ({
             contentGateway,
         }),
     });
+    const maintenanceJobConfig: JobConfig = {
+        atlasApiInfo: atlasApiInfo
+    }
+    const maintenanceJobs = createJobs(maintenanceJobConfig,mongoClient.db(dbName))
+    const maintenanceJobsScheduler = new ToadScheduler()
+    createMongoMaintainer(maintenanceJobs,maintenanceJobsScheduler)
 
     const context: ApplicationContext = {
         logger,

@@ -25,16 +25,17 @@ export type addMaintenanceJob = (
 export const makeToToadJob =
     (logger: Logger) =>
     (job: MaintenanceJob): SimpleIntervalJob => {
-        const task = new AsyncTask(job.id + ".task", () => {
+        const task = new AsyncTask(job.id, () => {
             return job
                 .run()()
                 .then(
                     (v) => {
                         if (isLeft(v))
                             throw v.left.error || new Error("Unknown Cause");
+                        logger.info(`Maintenance Job ${job.id} successful`)
                     },
                     (err) => {
-                        logger.info("Job execution failed", err);
+                        logger.warn(`Maintenance Job ${job.id} failed`, err);
                     }
                 );
         });

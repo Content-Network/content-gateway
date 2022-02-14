@@ -21,7 +21,7 @@ describe("IndexCreationJob", () => {
             throw new Error("Set process variables");
 
         const atlasApiInfo: AtlasApiInfo = {
-            publicKey: process.env.ATLAS_PUBLIC_KEY,
+            publicKey: process.env["ATLAS_PUBLIC_KEY"],
             privateKey: process.env.ATLAS_PRIVATE_KEY,
             projectId: process.env.ATLAS_PROJECT_ID,
             processId: process.env.ATLAS_PROCESS_ID,
