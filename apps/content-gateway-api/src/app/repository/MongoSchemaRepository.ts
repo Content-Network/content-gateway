@@ -1,12 +1,11 @@
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { CodecValidationError, UnknownError } from "@banklessdao/util-data";
-import { createLogger } from "@banklessdao/util-misc";
 import {
     createSchemaFromObject,
     Schema,
     SchemaInfo,
     schemaInfoToString,
-    stringToSchemaInfo,
+    stringToSchemaInfo
 } from "@banklessdao/util-schema";
 import {
     ContentGatewayUser,
@@ -17,8 +16,7 @@ import {
     SchemaRegistrationError,
     SchemaRemovalError,
     SchemaRepository,
-    SchemaStat,
-    UserRepository,
+    SchemaStat
 } from "@domain/feature-gateway";
 import * as A from "fp-ts/Array";
 import * as E from "fp-ts/Either";
@@ -40,7 +38,6 @@ export const createMongoSchemaRepository = async ({
     usersCollName,
 }: Deps): Promise<SchemaRepository> => {
     const schemas = db.collection<MongoSchema>(collName);
-    const logger = createLogger("MongoSchemaRepository");
 
     // TODO! test if the index was created
     await schemas.createIndex({ key: 1 }, { unique: true });

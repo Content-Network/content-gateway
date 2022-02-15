@@ -74,6 +74,13 @@ export const createDefaultClient = ({
     });
 };
 
+type ContentGatewayClientParams = {
+    /**
+     * The adapter to use for sending data to the Content Gateway API.
+     */
+    adapter: OutboundDataAdapter;
+};
+
 /**
  * Creates a new instance of the Content Gateway Client.
  * @param adapter The adapter to use for sending data to the Content Gateway API. If you're
@@ -82,12 +89,7 @@ export const createDefaultClient = ({
  */
 export const createContentGatewayClient = ({
     adapter,
-}: {
-    /**
-     * The adapter to use for sending data to the Content Gateway API.
-     */
-    adapter: OutboundDataAdapter;
-}): ContentGatewayClient => {
+}: ContentGatewayClientParams): ContentGatewayClient => {
     const schemas = new Map<string, Schema>();
     return {
         register: <T>({

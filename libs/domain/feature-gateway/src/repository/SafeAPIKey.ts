@@ -4,5 +4,4 @@
 export type SafeApiKey = {
     id: string;
     hash: string;
-    // TODO: we can include permissions here in a later implementation
 };

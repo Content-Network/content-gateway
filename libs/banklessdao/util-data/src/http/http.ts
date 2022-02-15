@@ -45,7 +45,6 @@ const decodeResponse = <T>(codec: t.Type<T>) => {
             pipe(
                 codec.decode(data),
                 E.mapLeft((e: t.Errors) => {
-                    console.log(`=== data: ${data} (${typeof data}) ===`);
                     return new CodecValidationError(
                         `Decoding HTTP response failed.`,
                         e
