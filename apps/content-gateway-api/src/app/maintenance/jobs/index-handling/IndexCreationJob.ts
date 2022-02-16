@@ -6,6 +6,7 @@ import * as t from "io-ts";
 import { Db } from "mongodb";
 // @ts-expect-error There are no type definitions for this package :'(
 import * as DigestFetch from "digest-fetch";
+import jobConfig from "../config"
 
 /**
  * Queries MongoDB for index recommendations and then
@@ -25,9 +26,7 @@ export const createIndexCreationJob = (
     return {
         run: runIndexCreation,
         id: "CreateIndexes",
-        schedule: {
-            hours: 1,
-        },
+        schedule: jobConfig.indexHandling.schedule
     };
 };
 
