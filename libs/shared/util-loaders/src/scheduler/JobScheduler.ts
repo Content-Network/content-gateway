@@ -1,4 +1,4 @@
-import { ContentGatewayClientV1 } from "@banklessdao/content-gateway-sdk";
+import { ContentGatewayClient } from "@banklessdao/content-gateway-sdk";
 import { ProgramError } from "@banklessdao/util-data";
 import { createLogger, programError } from "@banklessdao/util-misc";
 import { SchemaInfo, schemaInfoToString } from "@banklessdao/util-schema";
@@ -56,7 +56,7 @@ export type JobScheduler = {
 
 export type Deps = {
     jobRepository: JobRepository;
-    contentGatewayClient: ContentGatewayClientV1;
+    contentGatewayClient: ContentGatewayClient;
 };
 
 export const createJobScheduler = (deps: Deps): JobScheduler =>
@@ -65,7 +65,7 @@ export const createJobScheduler = (deps: Deps): JobScheduler =>
 class DefaultJobScheduler implements JobScheduler {
     private loaders = new Map<string, DataLoader<unknown>>();
     private running = false;
-    private client: ContentGatewayClientV1;
+    private client: ContentGatewayClient;
     private logger = createLogger("JobScheduler");
     private scheduler = new ToadScheduler();
     private jobRepository: JobRepository;
