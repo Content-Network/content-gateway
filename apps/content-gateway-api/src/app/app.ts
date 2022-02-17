@@ -24,6 +24,10 @@ import { liveLoaders } from "./live-loaders";
 import { LiveLoader } from "./live-loaders/LiveLoader";
 import { MongoUser } from "./repository/mongo/MongoUser";
 import { generateContentGatewayAPIV1 } from "./service";
+import { createJobs, JobConfig } from "./maintenance/jobs/jobs";
+import { createMongoMaintainer } from "./repository/MongoMaintainer";
+import { ToadScheduler } from "toad-scheduler";
+import { AtlasApiInfo } from "./maintenance/jobs/index-handling/IndexCreationJob";
 
 export type ApplicationContext = {
     app: express.Application;
@@ -43,6 +47,7 @@ export type AppParams = {
     usersCollectionName: string;
     rootUser: ContentGatewayUser;
     rootApiKey: string;
+    atlasApiInfo: AtlasApiInfo
 };
 
 export const createApp = async (params: AppParams) => {
@@ -82,6 +87,12 @@ export const createApp = async (params: AppParams) => {
         schemaRepository,
         authorization,
     });
+    const maintenanceJobConfig: JobConfig = {
+        atlasApiInfo: params.atlasApiInfo
+    }
+    const maintenanceJobs = createJobs(maintenanceJobConfig,mongoClient.db(dbName))
+    const maintenanceJobsScheduler = new ToadScheduler()
+    createMongoMaintainer(maintenanceJobs,maintenanceJobsScheduler)
 
     const context: ApplicationContext = {
         app,

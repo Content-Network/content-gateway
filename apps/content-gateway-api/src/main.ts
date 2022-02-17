@@ -2,7 +2,8 @@ import {
     base64Decode,
     createLogger,
     extractRight,
-    programError
+    programError,
+    verifiedEnvVar
 } from "@banklessdao/util-misc";
 import { ContentGatewayUserCodec } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
@@ -42,6 +43,13 @@ async function main() {
     const resetDb = process.env.RESET_DB === "true";
     const addFrontend = process.env.ADD_FRONTEND === "true";
 
+    const atlasApiInfo = {
+        publicKey: verifiedEnvVar("ATLAS_PUBLIC_KEY"),
+        privateKey: verifiedEnvVar("ATLAS_PRIVATE_KEY"),
+        projectId: verifiedEnvVar("ATLAS_PROJECT_ID"),
+        processId: verifiedEnvVar("ATLAS_PROCESS_ID"),
+    }
+
     await mongoClient.connect();
     await mongoClient.db("admin").command({ ping: 1 });
     logger.info(`Connected to MongoDB at ${url}`);
@@ -56,6 +64,7 @@ async function main() {
         rootApiKey: rootApiKey,
         schemasCollectionName: SCHEMAS_COLLECTION_NAME,
         usersCollectionName: USERS_COLLECTION_NAME,
+        atlasApiInfo
     });
 
     const server = app.listen(port, () => {
