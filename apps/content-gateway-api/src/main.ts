@@ -1,14 +1,15 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
     base64Decode,
     createLogger,
     extractRight,
     programError,
-    verifiedEnvVar
 } from "@banklessdao/util-misc";
 import { ContentGatewayUserCodec } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
 import { MongoClient } from "mongodb";
 import { createApp } from "./app/";
+import { AtlasApiInfo } from "./app/maintenance/jobs/index-handling/IndexCreationJob";
 
 const logger = createLogger("main");
 
@@ -31,7 +32,8 @@ async function main() {
         process.env.CGA_PORT ||
         programError("You must specify either PORT or CGA_PORT");
     const nodeEnv = process.env.NODE_ENV ?? programError("NODE_ENV not set");
-    const rootApiKey = process.env.ROOT_API_KEY ?? programError("ROOT_API_KEY not set");
+    const rootApiKey =
+        process.env.ROOT_API_KEY ?? programError("ROOT_API_KEY not set");
     const rootUserRaw =
         process.env.ROOT_USER ?? programError("ROOT_USER not set");
     const rootUserMaybe = ContentGatewayUserCodec.decode(
@@ -40,15 +42,19 @@ async function main() {
     if (E.isLeft(rootUserMaybe)) {
         programError(`ROOT_USER is invalid`);
     }
-    const resetDb = process.env.RESET_DB === "true";
-    const addFrontend = process.env.ADD_FRONTEND === "true";
-
-    const atlasApiInfo = {
-        publicKey: verifiedEnvVar("ATLAS_PUBLIC_KEY"),
-        privateKey: verifiedEnvVar("ATLAS_PRIVATE_KEY"),
-        projectId: verifiedEnvVar("ATLAS_PROJECT_ID"),
-        processId: verifiedEnvVar("ATLAS_PROCESS_ID"),
-    }
+    const publicKey = process.env.ATLAS_PUBLIC_KEY;
+    const privateKey = process.env.ATLAS_PRIVATE_KEY;
+    const projectId = process.env.ATLAS_PROJECT_ID;
+    const processId = process.env.ATLAS_PROCESS_ID;
+    const atlasOk = privateKey && publicKey && projectId && processId;
+    const atlasApiInfo: AtlasApiInfo | undefined = atlasOk
+        ? {
+              publicKey: publicKey!,
+              privateKey: privateKey!,
+              projectId: projectId!,
+              processId: processId!,
+          }
+        : undefined;
 
     await mongoClient.connect();
     await mongoClient.db("admin").command({ ping: 1 });
@@ -58,13 +64,11 @@ async function main() {
         dbName,
         mongoClient,
         nodeEnv,
-        resetDb,
-        addFrontend,
+        atlasApiInfo,
         rootUser: extractRight(rootUserMaybe),
         rootApiKey: rootApiKey,
         schemasCollectionName: SCHEMAS_COLLECTION_NAME,
         usersCollectionName: USERS_COLLECTION_NAME,
-        atlasApiInfo
     });
 
     const server = app.listen(port, () => {
@@ -76,4 +80,8 @@ async function main() {
     });
 }
 
-main().catch((err) => logger.error(err));
+main()
+    .catch((err) => logger.error(err))
+    .finally(() => {
+        mongoClient.close();
+    });

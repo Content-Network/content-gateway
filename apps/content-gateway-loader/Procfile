@@ -1,1 +1,1 @@
-web: script/prisma-deploy cgl && script/run cgl
+web: script/run cgl

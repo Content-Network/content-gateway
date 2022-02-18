@@ -12,6 +12,7 @@ import { graphqlHTTP } from "express-graphql";
 import * as g from "graphql";
 import { Collection, MongoClient, ObjectId } from "mongodb";
 import { join } from "path";
+import { ToadScheduler } from "toad-scheduler";
 import {
     authorization,
     createGraphQLAPIV1,
@@ -22,12 +23,11 @@ import {
 import { createMongoDataRepository, createMongoSchemaRepository } from "./";
 import { liveLoaders } from "./live-loaders";
 import { LiveLoader } from "./live-loaders/LiveLoader";
-import { MongoUser } from "./repository/mongo/MongoUser";
-import { generateContentGatewayAPIV1 } from "./service";
-import { createJobs, JobConfig } from "./maintenance/jobs/jobs";
-import { createMongoMaintainer } from "./repository/MongoMaintainer";
-import { ToadScheduler } from "toad-scheduler";
 import { AtlasApiInfo } from "./maintenance/jobs/index-handling/IndexCreationJob";
+import { createJobs, JobConfig } from "./maintenance/jobs/jobs";
+import { MongoUser } from "./repository/mongo/MongoUser";
+import { createMongoMaintainer } from "./repository/MongoMaintainer";
+import { generateContentGatewayAPIV1 } from "./service";
 
 export type ApplicationContext = {
     app: express.Application;
@@ -39,15 +39,13 @@ export type ApplicationContext = {
 
 export type AppParams = {
     nodeEnv: string;
-    resetDb: boolean;
-    addFrontend: boolean;
     dbName: string;
     mongoClient: MongoClient;
     schemasCollectionName: string;
     usersCollectionName: string;
     rootUser: ContentGatewayUser;
     rootApiKey: string;
-    atlasApiInfo: AtlasApiInfo
+    atlasApiInfo?: AtlasApiInfo;
 };
 
 export const createApp = async (params: AppParams) => {
@@ -56,9 +54,6 @@ export const createApp = async (params: AppParams) => {
     const db = mongoClient.db(dbName);
     const users = db.collection<MongoUser>(params.usersCollectionName);
 
-    if (params.resetDb) {
-        await mongoClient.db(dbName).dropDatabase();
-    }
     logger.info(`Running in ${params.nodeEnv} mode`);
 
     const app = express();
@@ -87,12 +82,24 @@ export const createApp = async (params: AppParams) => {
         schemaRepository,
         authorization,
     });
-    const maintenanceJobConfig: JobConfig = {
-        atlasApiInfo: params.atlasApiInfo
+    if (params.atlasApiInfo) {
+        logger.info(
+            "Atlas information was present, creating index maintenance job"
+        );
+        const maintenanceJobConfig: JobConfig = {
+            atlasApiInfo: params.atlasApiInfo,
+        };
+        const maintenanceJobs = createJobs(
+            maintenanceJobConfig,
+            mongoClient.db(dbName)
+        );
+        const maintenanceJobsScheduler = new ToadScheduler();
+        createMongoMaintainer(maintenanceJobs, maintenanceJobsScheduler);
+    } else {
+        logger.info(
+            "Atlas information was not present, skipping index maintenance job"
+        );
     }
-    const maintenanceJobs = createJobs(maintenanceJobConfig,mongoClient.db(dbName))
-    const maintenanceJobsScheduler = new ToadScheduler()
-    createMongoMaintainer(maintenanceJobs,maintenanceJobsScheduler)
 
     const context: ApplicationContext = {
         app,
@@ -114,12 +121,10 @@ export const createApp = async (params: AppParams) => {
     );
 
     const clientBuildPath = join(__dirname, "../content-gateway-api-frontend");
-    if (params.addFrontend) {
-        app.use(express.static(clientBuildPath));
-        app.get("*", (_, response) => {
-            response.sendFile(join(clientBuildPath, "index.html"));
-        });
-    }
+    app.use(express.static(clientBuildPath));
+    app.get("*", (_, response) => {
+        response.sendFile(join(clientBuildPath, "index.html"));
+    });
 
     return app;
 };

@@ -4,7 +4,6 @@ import {
 } from "@banklessdao/content-gateway-sdk";
 import { createLogger } from "@banklessdao/util-misc";
 import { schemaInfoToString } from "@banklessdao/util-schema";
-import { PrismaClient } from "@cgl/prisma";
 import { createLoaderRegistry } from "@domain/feature-loaders";
 import {
     createJobScheduler,
@@ -21,31 +20,28 @@ import * as TE from "fp-ts/TaskEither";
 import * as TO from "fp-ts/TaskOption";
 import * as t from "io-ts";
 import { withMessage } from "io-ts-types";
+import { Db } from "mongodb";
 import { join } from "path";
-import { createJobRepository } from "../repository/PrismaJobRepository";
+import { MongoJob } from "../repository/mongo/MongoJob";
+import { createMongoJobRepository } from "../repository/MongoJobRepository";
 
 export type AppParams = {
     nodeEnv: string;
-    resetDb: boolean;
-    addFrontend: boolean;
-    prisma: PrismaClient;
+    db: Db;
+    jobsCollName: string;
     cgaAPIKey: string;
     cgaURL: string;
-    youtubeAPIKey: string;
-    ghostAPIKey: string;
-    snapshotSpaces: string[];
+    youtubeAPIKey?: string;
+    ghostAPIKey?: string;
+    snapshotSpaces?: string[];
+    discordBotToken?: string;
+    discordChannel?: string;
 };
 
 export const createApp = async (appParams: AppParams) => {
-    const { prisma, nodeEnv } = appParams;
-    const isProd = nodeEnv === "production";
+    const { nodeEnv, db, jobsCollName } = appParams;
     const logger = createLogger("ContentGatewayLoaderApp");
-
-    if (appParams.resetDb) {
-        logger.info("Database reset requested. Resetting...");
-        await prisma.jobLog.deleteMany({});
-        await prisma.jobSchedule.deleteMany({});
-    }
+    const jobs = db.collection<MongoJob>(jobsCollName);
 
     logger.info(`Running in ${nodeEnv} mode`);
 
@@ -53,8 +49,13 @@ export const createApp = async (appParams: AppParams) => {
         ghostApiKey: appParams.ghostAPIKey,
         youtubeApiKey: appParams.youtubeAPIKey,
         snapshotSpaces: appParams.snapshotSpaces,
+        discordBotToken: process.env.DISCORD_BOT_TOKEN,
+        discordChannel: process.env.DISCORD_CHANNEL,
     });
-    const jobRepository = createJobRepository(prisma);
+    const jobRepository = await createMongoJobRepository({
+        db,
+        collName: jobsCollName,
+    });
 
     const contentGatewayClient = createContentGatewayClient({
         adapter: createHTTPAdapterV1({
@@ -172,9 +173,9 @@ export const createApp = async (appParams: AppParams) => {
         return pipe(
             jobRepository.findAll(),
             TE.fromTask,
-            TE.chainW((jobs) => {
+            TE.chainW((result) => {
                 return pipe(
-                    jobs.map((job) => {
+                    result.map((job) => {
                         return scheduler.schedule({
                             info: job.info,
                             scheduledAt: new Date(),
@@ -190,8 +191,8 @@ export const createApp = async (appParams: AppParams) => {
                 (e) => async () => {
                     res.status(500).send(e);
                 },
-                (jobs) => async () => {
-                    res.send(jobs.map(mapJobToJson));
+                (result) => async () => {
+                    res.send(result.map(mapJobToJson));
                 }
             )
         )();
@@ -205,18 +206,7 @@ export const createApp = async (appParams: AppParams) => {
                     res.status(400).send(errors);
                 },
                 (params) => {
-                    prisma.jobSchedule
-                        .findUnique({
-                            where: { name: params.name },
-                            include: {
-                                log: {
-                                    orderBy: {
-                                        createdAt: "desc",
-                                    },
-                                    take: 50,
-                                },
-                            },
-                        })
+                    jobs.findOne({ name: params.name })
                         .then((job) => {
                             if (!job) {
                                 res.status(404).send("Not found");
@@ -232,7 +222,7 @@ export const createApp = async (appParams: AppParams) => {
                                         job.previousScheduledAt?.getTime(),
                                     scheduledAt: job.scheduledAt.getTime(),
                                     updatedAt: job.updatedAt.getTime(),
-                                    logs: job.log.map((log) => ({
+                                    logs: job.logs.map((log) => ({
                                         note: log.note,
                                         state: log.state,
                                         info: log.info,
@@ -293,12 +283,10 @@ export const createApp = async (appParams: AppParams) => {
         __dirname,
         "../content-gateway-loader-frontend"
     );
-    if (appParams.addFrontend || isProd) {
-        app.use(express.static(clientBuildPath));
-        app.get("*", (_, response) => {
-            response.sendFile(join(clientBuildPath, "index.html"));
-        });
-    }
+    app.use(express.static(clientBuildPath));
+    app.get("*", (_, response) => {
+        response.sendFile(join(clientBuildPath, "index.html"));
+    });
 
     return app;
 };

@@ -15,24 +15,23 @@ services:
             - "${MONGO_CGA_PORT}:27017"
         networks:
             - storage
-    postgres_cgl:
-        container_name: postgres_cgl
-        image: postgres
+    mongo_cgl:
+        image: mongo
+        restart: unless-stopped
+        container_name: mongo_cgl
         environment:
-            POSTGRES_USER: ${PG_CGL_USER}
-            POSTGRES_DB: ${PG_CGL_USER} # same as user
-            POSTGRES_PASSWORD: ${PG_CGL_PASSWORD}
-            PGDATA: /data/postgres_cgl
+            MONGO_INITDB_ROOT_USERNAME: ${MONGO_CGL_USER}
+            MONGO_INITDB_ROOT_PASSWORD: ${MONGO_CGL_PASSWORD}
+            MONGO_INITDB_DATABASE: ${MONGO_CGL_USER}
         volumes:
-            - postgres_cgl:/data/postgres_cgl
+            - mongo_cgl:/data/db
         ports:
-            - "${PG_CGL_PORT}:5432"
+            - "${MONGO_CGL_PORT}:27017"
         networks:
             - storage
-        restart: unless-stopped
 networks:
     storage:
         driver: bridge
 volumes:
     mongo_cga:
-    postgres_cgl:
+    mongo_cgl:

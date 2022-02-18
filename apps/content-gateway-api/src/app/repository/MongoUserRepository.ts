@@ -83,7 +83,12 @@ export const createMongoUserRepository = async ({
     ): TE.TaskEither<UserCreationError, ContentGatewayUser> => {
         return pipe(
             wrapDbOperation(() =>
-                users.insertOne({ name, roles, apiKeys: [] })
+                users.insertOne({
+                    name,
+                    roles,
+                    _id: new ObjectId(),
+                    apiKeys: [],
+                })
             )(),
             TE.map((result) => {
                 return mongoUserToCGUser({

@@ -1,9 +1,20 @@
 import { createLogger, programError } from "@banklessdao/util-misc";
-import { PrismaClient } from "@cgl/prisma";
+import { MongoClient } from "mongodb";
 import { createApp } from "./app";
 
 const logger = createLogger("main");
-const prisma = new PrismaClient();
+
+const url =
+    process.env.MONGO_CGL_URL ?? programError("You must specify MONGO_CGA_URL");
+const dbName =
+    process.env.MONGO_CGL_USER ??
+    programError("You must specify MONGO_CGL_USER");
+
+const mongoClient = new MongoClient(url, {
+    keepAlive: true,
+});
+
+const jobsCollName = "jobs";
 
 async function main() {
     const port =
@@ -15,30 +26,32 @@ async function main() {
         process.env.CGA_API_KEY || programError("You must specify CGA_API_KEY");
     const cgaURL =
         process.env.CGA_URL || programError("You must specify CGA_URL");
-    const youtubeAPIKey =
-        process.env.YOUTUBE_API_KEY ||
-        programError("You must specify YOUTUBE_API_KEY");
-    const ghostAPIKey =
-        process.env.GHOST_API_KEY ||
-        programError("You must specify GHOST_API_KEY");
-    const snapshotSpaces =
-        process.env.SNAPSHOT_SPACES?.split(",") ||
-        programError("You must specify SNAPSHOT_SPACES");
     const nodeEnv =
         process.env.NODE_ENV ?? programError("You must specify NODE_ENV");
-    const resetDb = process.env.RESET_DB === "true";
-    const addFrontend = process.env.ADD_FRONTEND === "true";
+
+    const youtubeAPIKey = process.env.YOUTUBE_API_KEY;
+    const ghostAPIKey = process.env.GHOST_API_KEY;
+    const snapshotSpaces = process.env.SNAPSHOT_SPACES?.split(",");
+    const discordBotToken = process.env.DISCORD_BOT_TOKEN;
+    const discordChannel = process.env.DISCORD_CHANNEL;
+
+    await mongoClient.connect();
+    await mongoClient.db("admin").command({ ping: 1 });
+    logger.info(`Connected to MongoDB at ${url}`);
+
+    const db = mongoClient.db(dbName);
 
     const app = await createApp({
         cgaAPIKey,
         cgaURL,
-        ghostAPIKey,
         nodeEnv,
-        prisma,
-        resetDb,
+        db,
+        jobsCollName,
+        ghostAPIKey,
+        discordBotToken,
+        discordChannel,
         snapshotSpaces,
         youtubeAPIKey,
-        addFrontend,
     });
 
     const server = app.listen(port, () => {
@@ -53,5 +66,5 @@ async function main() {
 main()
     .catch((err) => logger.error(err))
     .finally(() => {
-        prisma.$disconnect();
+        mongoClient.close();
     });
