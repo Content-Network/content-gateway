@@ -10,19 +10,26 @@ import { createBanklessPodcastLoader } from "./bankless-podcast";
 import { createBANKTransactionLoader } from "./bankless-token/BanklessTokenTransactionLoader";
 import { createBANKTransferLoader } from "./bankless-token/BanklessTokenTransferLoader";
 import { createBanklessWebsitePostLoader } from "./bankless-website/BanklessGhostPostLoader";
+import { createDiscordLoader } from "./discord/DiscordLoader";
+import { createENSDomainLoader } from "./ens/ENSLoader";
 import { createPOAPEventLoader } from "./poap-token/POAPEventLoader";
 import { createPOAPTransferLoader } from "./poap-token/POAPTransferLoader";
+import { createSnapshotProposalLoader } from "./snapshot";
 
-export type ApiKeys = {
+export type LoadersConfig = {
     youtubeApiKey: string;
     ghostApiKey: string;
+    snapshotSpaces: string[];
+    discordBotToken: string;
+    discordChannel: string;
 };
 
 /**
  * 📗 Note for developers: this is where you should add your loader(s).
  */
-export const createLoaders = (apiKeys: ApiKeys) =>
+export const createLoaders = (apiKeys: LoadersConfig) =>
     [
+        // createDiscordLoader(apiKeys.discordBotToken, apiKeys.discordChannel),
         createBanklessAcademyCourseLoader(),
         createBountyLoader(),
         createBanklessPodcastLoader(apiKeys.youtubeApiKey),
@@ -34,4 +41,6 @@ export const createLoaders = (apiKeys: ApiKeys) =>
         createPOAPTokenLoader(),
         createPOAPAccountLoader(),
         createPOAPTransferLoader(),
+        createSnapshotProposalLoader(apiKeys.snapshotSpaces),
+        createENSDomainLoader(),
     ] as DataLoader<unknown>[];
