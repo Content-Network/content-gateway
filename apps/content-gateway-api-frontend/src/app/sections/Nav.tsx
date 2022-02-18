@@ -42,7 +42,7 @@ const NavLink: FunctionComponent<PropsWithLink> = ({ link, children }) => (
 
 const Links = [
     ["Home", "/"],
-    ["Schemas", "/schemas"],
+    ["Wizard", "/wizard"],
 ];
 
 const Nav: FunctionComponent = () => {
