@@ -1,7 +1,7 @@
 import { ProgramError } from "@banklessdao/util-data";
 import { SchemaInfo } from "@banklessdao/util-schema";
 import * as TE from "fp-ts/TaskEither";
-import { DEFAULT_CURSOR, JobDescriptor } from ".";
+import { JobDescriptor } from ".";
 import { InitContext } from "./context";
 import { LoadContext } from "./context/LoadContext";
 import { SaveContext } from "./context/SaveContext";
@@ -41,7 +41,7 @@ export interface DataLoader<T> {
     initialize: (deps: InitContext) => TE.TaskEither<ProgramError, void>;
     /**
      * Loads data from the data source asynchronously, and transforms the
-     * data into the type `T`. This is the type that should be reigstered
+     * data into the type `T`. This is the type that should be registered
      * with the Content Gateway.
      */
     load: (deps: LoadContext) => TE.TaskEither<ProgramError, LoadingResult<T>>;
@@ -54,14 +54,3 @@ export interface DataLoader<T> {
         deps: SaveContext<T>
     ) => TE.TaskEither<ProgramError, JobDescriptor | undefined>;
 }
-
-const createNoOpLoader = <T>(): DataLoader<T> => ({
-    info: {
-        namespace: "n/a",
-        name: "n/a",
-        version: "n/a",
-    },
-    initialize: () => TE.right(undefined),
-    load: () => TE.right({ data: [], cursor: DEFAULT_CURSOR }),
-    save: () => TE.right(undefined),
-});

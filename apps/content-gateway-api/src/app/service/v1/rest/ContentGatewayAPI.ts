@@ -46,7 +46,7 @@ export const KeyCodec = t.strict({
  * This is the REST API of Content Gateway that is used
  * by the Content Gateway Client
  */
-export const generateContentGatewayAPIV1 = async ({
+export const createContentGatewayAPIV1 = async ({
     app,
     userRepository,
     contentGateway,

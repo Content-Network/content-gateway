@@ -33,58 +33,58 @@ const logger = createLogger("loaders");
 export const createLoaders = (apiKeys: LoadersConfig) => {
     const loaders = [
         createBanklessAcademyCourseLoader(),
-        // createBountyLoader(),
-        // createBANKAccountLoader(),
-        // createBANKTransactionLoader(),
-        // createBANKTransferLoader(),
-        // createPOAPEventLoader(),
-        // createPOAPTokenLoader(),
-        // createPOAPAccountLoader(),
-        // createPOAPTransferLoader(),
-        // createENSDomainLoader(),
+        createBountyLoader(),
+        createBANKAccountLoader(),
+        createBANKTransactionLoader(),
+        createBANKTransferLoader(),
+        createPOAPEventLoader(),
+        createPOAPTokenLoader(),
+        createPOAPAccountLoader(),
+        createPOAPTransferLoader(),
+        createENSDomainLoader(),
     ] as DataLoader<unknown>[];
-    // if (apiKeys.youtubeApiKey) {
-    //     loaders.push(
-    //         createBanklessPodcastLoader(
-    //             apiKeys.youtubeApiKey
-    //         ) as DataLoader<unknown>
-    //     );
-    // } else {
-    //     logger.warn(
-    //         "No youtube api key provided, skipping youtube podcast loader"
-    //     );
-    // }
-    // if (apiKeys.ghostApiKey) {
-    //     loaders.push(
-    //         createBanklessWebsitePostLoader(
-    //             apiKeys.ghostApiKey
-    //         ) as DataLoader<unknown>
-    //     );
-    // } else {
-    //     logger.warn(
-    //         "No ghost api key provided, skipping bankless website post loader"
-    //     );
-    // }
-    // if (apiKeys.snapshotSpaces) {
-    //     loaders.push(
-    //         createSnapshotProposalLoader(
-    //             apiKeys.snapshotSpaces
-    //         ) as DataLoader<unknown>
-    //     );
-    // } else {
-    //     logger.warn("No snapshot spaces provided, skipping snapshot loader");
-    // }
-    // if (apiKeys.discordBotToken && apiKeys.discordChannel) {
-    //     loaders.push(
-    //         createDiscordLoader(
-    //             apiKeys.discordBotToken,
-    //             apiKeys.discordChannel
-    //         ) as DataLoader<unknown>
-    //     );
-    // } else {
-    //     logger.warn(
-    //         "No discord bot token or channel provided, skipping discord loader"
-    //     );
-    // }
+    if (apiKeys.youtubeApiKey) {
+        loaders.push(
+            createBanklessPodcastLoader(
+                apiKeys.youtubeApiKey
+            ) as DataLoader<unknown>
+        );
+    } else {
+        logger.warn(
+            "No youtube api key provided, skipping youtube podcast loader"
+        );
+    }
+    if (apiKeys.ghostApiKey) {
+        loaders.push(
+            createBanklessWebsitePostLoader(
+                apiKeys.ghostApiKey
+            ) as DataLoader<unknown>
+        );
+    } else {
+        logger.warn(
+            "No ghost api key provided, skipping bankless website post loader"
+        );
+    }
+    if (apiKeys.snapshotSpaces) {
+        loaders.push(
+            createSnapshotProposalLoader(
+                apiKeys.snapshotSpaces
+            ) as DataLoader<unknown>
+        );
+    } else {
+        logger.warn("No snapshot spaces provided, skipping snapshot loader");
+    }
+    if (apiKeys.discordBotToken && apiKeys.discordChannel) {
+        loaders.push(
+            createDiscordLoader(
+                apiKeys.discordBotToken,
+                apiKeys.discordChannel
+            ) as DataLoader<unknown>
+        );
+    } else {
+        logger.warn(
+            "No discord bot token or channel provided, skipping discord loader"
+        );
+    }
     return loaders;
 };

@@ -1,18 +1,13 @@
-import {
-    createContentGatewayClient,
-    createHTTPAdapterV1
-} from "@banklessdao/content-gateway-sdk";
-import { createLogger } from "@banklessdao/util-misc";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { schemaInfoToString } from "@banklessdao/util-schema";
-import { createLoaderRegistry } from "@domain/feature-loaders";
 import {
-    createJobScheduler,
     DEFAULT_CURSOR,
     DEFAULT_LIMIT,
     Job,
-    ScheduleMode
+    JobRepository,
+    JobScheduler,
+    ScheduleMode,
 } from "@shared/util-loaders";
-import * as bodyParser from "body-parser";
 import * as express from "express";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
@@ -21,70 +16,24 @@ import * as TO from "fp-ts/TaskOption";
 import * as t from "io-ts";
 import { withMessage } from "io-ts-types";
 import { Db } from "mongodb";
-import { join } from "path";
-import { MongoJob } from "../repository/mongo/MongoJob";
-import { createMongoJobRepository } from "../repository/MongoJobRepository";
+import { MongoJob } from "../../..";
 
-export type AppParams = {
-    nodeEnv: string;
+type LoaderAPIParams = {
     db: Db;
-    jobsCollName: string;
-    cgaAPIKey: string;
-    cgaURL: string;
-    youtubeAPIKey?: string;
-    ghostAPIKey?: string;
-    snapshotSpaces?: string[];
-    discordBotToken?: string;
-    discordChannel?: string;
+    app: express.Application;
+    jobsCollectionName: string;
+    jobRepository: JobRepository;
+    jobScheduler: JobScheduler;
 };
 
-export const createApp = async (appParams: AppParams) => {
-    const { nodeEnv, db, jobsCollName } = appParams;
-    const logger = createLogger("ContentGatewayLoaderApp");
-    const jobs = db.collection<MongoJob>(jobsCollName);
-
-    logger.info(`Running in ${nodeEnv} mode`);
-
-    const loaderRegistry = createLoaderRegistry({
-        ghostApiKey: appParams.ghostAPIKey,
-        youtubeApiKey: appParams.youtubeAPIKey,
-        snapshotSpaces: appParams.snapshotSpaces,
-        discordBotToken: process.env.DISCORD_BOT_TOKEN,
-        discordChannel: process.env.DISCORD_CHANNEL,
-    });
-    const jobRepository = await createMongoJobRepository({
-        db,
-        collName: jobsCollName,
-    });
-
-    const contentGatewayClient = createContentGatewayClient({
-        adapter: createHTTPAdapterV1({
-            apiUrl: appParams.cgaURL,
-            apiKey: appParams.cgaAPIKey,
-        }),
-    });
-
-    const scheduler = createJobScheduler({
-        jobRepository,
-        contentGatewayClient,
-    });
-
-    await pipe(
-        scheduler.start(),
-        TE.mapLeft((err) => {
-            logger.error("Starting the Job scheduler failed", err);
-            return err;
-        })
-    )();
-
-    for (const loader of loaderRegistry.loaders) {
-        await scheduler.register(loader)();
-    }
-
-    const app = express();
-
-    app.use(bodyParser.json());
-
+export const addLoaderAPIV1 = async ({
+    db,
+    app,
+    jobsCollectionName,
+    jobRepository,
+    jobScheduler,
+}: LoaderAPIParams) => {
+    const jobs = db.collection<MongoJob>(jobsCollectionName);
     const NameParam = t.strict({
         name: t.string,
     });
@@ -125,7 +74,6 @@ export const createApp = async (appParams: AppParams) => {
         updatedAt: job.updatedAt.getTime(),
     });
 
-    // TODO: move these to the repo
     app.get("/api/v1/rest/jobs", async (_, res) => {
         const jobs = await jobRepository.findAll()();
         res.send(
@@ -148,7 +96,7 @@ export const createApp = async (appParams: AppParams) => {
                 },
                 (params) => {
                     return pipe(
-                        scheduler.schedule({
+                        jobScheduler.schedule({
                             info: params.info,
                             scheduledAt: new Date(params.scheduledAt),
                             scheduleMode: params.scheduleMode,
@@ -176,7 +124,7 @@ export const createApp = async (appParams: AppParams) => {
             TE.chainW((result) => {
                 return pipe(
                     result.map((job) => {
-                        return scheduler.schedule({
+                        return jobScheduler.schedule({
                             info: job.info,
                             scheduledAt: new Date(),
                             scheduleMode: ScheduleMode.BACKFILL,
@@ -257,7 +205,7 @@ export const createApp = async (appParams: AppParams) => {
                         TO.chain(TO.fromNullable),
                         TE.fromTaskOption(() => new Error("Not found")),
                         TE.chainW((job) =>
-                            scheduler.schedule({
+                            jobScheduler.schedule({
                                 info: job.info,
                                 scheduledAt: new Date(),
                                 scheduleMode: ScheduleMode.BACKFILL,
@@ -278,15 +226,4 @@ export const createApp = async (appParams: AppParams) => {
             )
         );
     });
-
-    const clientBuildPath = join(
-        __dirname,
-        "../content-gateway-loader-frontend"
-    );
-    app.use(express.static(clientBuildPath));
-    app.get("*", (_, response) => {
-        response.sendFile(join(clientBuildPath, "index.html"));
-    });
-
-    return app;
 };

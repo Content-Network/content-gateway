@@ -8,9 +8,9 @@ import { createMongoUserRepository } from ".";
 import { MongoUser } from "./mongo/MongoUser";
 
 const url =
-    process.env.MONGO_CGA_URL ?? programError("MONGO_CGA_URL is missing");
+    process.env.CG_MONGO_URL ?? programError("CG_MONGO_URL is missing");
 const dbName =
-    process.env.MONGO_CGA_USER ?? programError("MONGO_CGA_USER is missing");
+    process.env.CG_MONGO_USER ?? programError("CG_MONGO_USER is missing");
 
 describe("Given a Mongo user repository", () => {
     let target: UserRepository;
@@ -28,7 +28,7 @@ describe("Given a Mongo user repository", () => {
 
         target = await createMongoUserRepository({
             db,
-            collName,
+            usersCollectionName: collName,
         });
     });
 

@@ -3,21 +3,20 @@ import { createLogger } from "@banklessdao/util-misc";
 import {
     SchemaInfo,
     schemaInfoToString,
-    stringToSchemaInfo
+    stringToSchemaInfo,
 } from "@banklessdao/util-schema";
 import {
     DatabaseError,
     Job,
     JobRepository,
-    JobState
+    JobState,
 } from "@shared/util-loaders";
 import { pipe } from "fp-ts/lib/function";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
 import * as TO from "fp-ts/TaskOption";
 import { Db, Document, ModifyResult } from "mongodb";
-import { wrapDbOperation } from "../utils";
-import { MongoJob } from "./mongo/MongoJob";
+import { MongoJob, wrapDbOperation } from ".";
 
 type Deps = {
     db: Db;
@@ -85,15 +84,15 @@ export const createMongoJobRepository = async ({
                         $setOnInsert: {
                             name: name,
                             createdAt: new Date(),
-                        },
-                        $push: {
-                            logs: {
-                                note: note,
-                                state: state,
-                                info: info,
-                                createdAt: new Date(),
+                            $push: {
+                                logs: {
+                                    note: note,
+                                    state: state,
+                                    info: info,
+                                    createdAt: new Date(),
+                                },
+                                $slice: -100,
                             },
-                            $slice: -100,
                         },
                     },
                     {

@@ -35,7 +35,7 @@ import * as request from "supertest";
 import { v4 as uuid } from "uuid";
 import { KeyCodec } from ".";
 import { authorization } from "../../..";
-import { generateContentGatewayAPIV1 } from "./ContentGatewayAPI";
+import { createContentGatewayAPIV1 } from "./ContentGatewayAPI";
 
 const userInfo = {
     namespace: "test",
@@ -125,7 +125,7 @@ describe("Given a content gateway api", () => {
         });
         app.use(
             "/",
-            await generateContentGatewayAPIV1({
+            await createContentGatewayAPIV1({
                 app,
                 userRepository: userRepository,
                 contentGateway: gateway,

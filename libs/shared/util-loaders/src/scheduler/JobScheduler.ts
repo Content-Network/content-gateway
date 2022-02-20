@@ -17,7 +17,7 @@ import {
     RegistrationError,
     SchedulerNotRunningError,
     SchedulerStartupError,
-    SchedulingError,
+    SchedulingError
 } from "./errors";
 import { Job } from "./Job";
 import { JobRepository } from "./JobRepository";
@@ -55,6 +55,7 @@ export type JobScheduler = {
 };
 
 export type Deps = {
+    toad: ToadScheduler;
     jobRepository: JobRepository;
     contentGatewayClient: ContentGatewayClient;
 };
@@ -67,12 +68,13 @@ class DefaultJobScheduler implements JobScheduler {
     private running = false;
     private client: ContentGatewayClient;
     private logger = createLogger("JobScheduler");
-    private scheduler = new ToadScheduler();
+    private toad: ToadScheduler;
     private jobRepository: JobRepository;
 
     constructor(deps: Deps) {
         this.jobRepository = deps.jobRepository;
         this.client = deps.contentGatewayClient;
+        this.toad = deps.toad;
     }
 
     start(): TE.TaskEither<SchedulerStartupError, void> {
@@ -92,7 +94,7 @@ class DefaultJobScheduler implements JobScheduler {
                         this.logger.info("Job execution failed", err);
                     }
                 );
-                this.scheduler.addSimpleIntervalJob(
+                this.toad.addSimpleIntervalJob(
                     new SimpleIntervalJob({ seconds: 5 }, task)
                 );
             },
@@ -187,7 +189,7 @@ class DefaultJobScheduler implements JobScheduler {
         }
         this.logger.info("Stopping job scheduler.");
         this.running = false;
-        this.scheduler.stop();
+        this.toad.stop();
     }
 
     remove(name: string): TE.TaskEither<RemoveError, void> {
