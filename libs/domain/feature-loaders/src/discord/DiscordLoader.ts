@@ -1,27 +1,58 @@
-import { notEmpty, programError } from "@banklessdao/util-misc";
+import { notEmpty } from "@banklessdao/util-misc";
 import {
     LoadContext,
     ScheduleMode,
     DataLoaderBase,
     DEFAULT_CURSOR,
-    DatabaseError,
 } from "@shared/util-loaders";
 
-import { ProgramError, UnknownError } from "@banklessdao/util-data";
+import { UnknownError } from "@banklessdao/util-data";
 import {
     Data,
+    Nested,
     NonEmptyProperty,
+    RequiredObjectRef,
     OptionalProperty,
+    RequiredArrayRef,
 } from "@banklessdao/util-schema";
 import { TextChannel, Client, Intents, Collection, Message } from "discord.js";
 import * as TE from "fp-ts/lib/TaskEither";
-import { left } from "fp-ts/lib/Separated";
 
 const INFO = {
-    namespace: "discord",
-    name: "Message",
+    namespace: "bankless-discord",
+    name: "announcements",
     version: "V1",
 };
+
+@Nested()
+class DiscordAuthor {
+    @NonEmptyProperty()
+    id: string;
+    @NonEmptyProperty()
+    username: string;
+    @OptionalProperty()
+    avatar?: string;
+}
+
+@Nested()
+class DiscordAttachment {
+    @NonEmptyProperty()
+    id: string;
+    @OptionalProperty()
+    name?: string;
+    @NonEmptyProperty()
+    url: string;
+    @NonEmptyProperty()
+    proxyURL: string;
+    @OptionalProperty()
+    size?: number;
+    @OptionalProperty()
+    height?: number;
+    @OptionalProperty()
+    width?: number;
+    @OptionalProperty()
+    contentType?: string;
+}
 
 @Data({
     info: INFO,
@@ -32,7 +63,13 @@ class DiscordMessage {
     @OptionalProperty()
     content?: string;
     @NonEmptyProperty()
-    createdAt: string;
+    createdAt: number;
+    @RequiredObjectRef(DiscordAuthor)
+    author: DiscordAuthor;
+    @RequiredArrayRef(DiscordAuthor)
+    mentions: DiscordAuthor[];
+    @RequiredArrayRef(DiscordAttachment)
+    attachments: DiscordAttachment[];
 }
 
 type DiscordFetchResult = Collection<string, Message>;
@@ -82,7 +119,7 @@ export class DiscordLoader extends DataLoaderBase<
                 });
             },
             (err: unknown) => {
-                return new DatabaseError(String(err));
+                return new UnknownError(err);
             }
         );
     }
@@ -92,7 +129,27 @@ export class DiscordLoader extends DataLoaderBase<
             .map((rawData) => ({
                 id: rawData.id,
                 content: rawData.content,
-                createdAt: rawData.createdAt.toString(),
+                createdAt: rawData.createdAt.getTime(),
+                author: {
+                    id: rawData.author.id,
+                    username: rawData.author.username,
+                    avatar: rawData.author.avatar ?? undefined,
+                },
+                mentions: rawData.mentions.users.map((author) => ({
+                    id: author.id,
+                    username: author.username,
+                    avatar: author.avatar ?? undefined,
+                })),
+                attachments: rawData.attachments.map((attachment) => ({
+                    id: attachment.id,
+                    name: attachment.name ?? undefined,
+                    url: attachment.url,
+                    proxyURL: attachment.proxyURL,
+                    size: attachment.size,
+                    height: attachment.height ?? undefined,
+                    width: attachment.width ?? undefined,
+                    contentType: attachment.contentType ?? undefined,
+                })),
             }))
             .filter(notEmpty);
     }

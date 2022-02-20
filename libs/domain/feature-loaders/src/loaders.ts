@@ -29,7 +29,7 @@ export type LoadersConfig = {
  */
 export const createLoaders = (apiKeys: LoadersConfig) =>
     [
-        // createDiscordLoader(apiKeys.discordBotToken, apiKeys.discordChannel),
+        createDiscordLoader(apiKeys.discordBotToken, apiKeys.discordChannel),
         createBanklessAcademyCourseLoader(),
         createBountyLoader(),
         createBanklessPodcastLoader(apiKeys.youtubeApiKey),
