@@ -18,12 +18,6 @@ async function main() {
     const youtubeAPIKey =
         process.env.YOUTUBE_API_KEY ||
         programError("You must specify YOUTUBE_API_KEY");
-    const discordChannel =
-        process.env.DISCORD_CHANNEL ||
-        programError("You must specify DISCORD_CHANNEL");
-    const discordBotToken =
-        process.env.DISCORD_BOT_TOKEN ||
-        programError("You must specify DISCORD_BOT_TOKEN");
     const ghostAPIKey =
         process.env.GHOST_API_KEY ||
         programError("You must specify GHOST_API_KEY");
@@ -45,8 +39,6 @@ async function main() {
         snapshotSpaces,
         youtubeAPIKey,
         addFrontend,
-        discordBotToken,
-        discordChannel,
     });
 
     const server = app.listen(port, () => {
