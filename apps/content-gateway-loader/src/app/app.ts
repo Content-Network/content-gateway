@@ -34,8 +34,6 @@ export type AppParams = {
     youtubeAPIKey: string;
     ghostAPIKey: string;
     snapshotSpaces: string[];
-    discordChannel: string;
-    discordBotToken: string;
 };
 
 export const createApp = async (appParams: AppParams) => {
@@ -55,8 +53,6 @@ export const createApp = async (appParams: AppParams) => {
         ghostApiKey: appParams.ghostAPIKey,
         youtubeApiKey: appParams.youtubeAPIKey,
         snapshotSpaces: appParams.snapshotSpaces,
-        discordBotToken: appParams.discordBotToken,
-        discordChannel: appParams.discordChannel,
     });
     const jobRepository = createJobRepository(prisma);
 
