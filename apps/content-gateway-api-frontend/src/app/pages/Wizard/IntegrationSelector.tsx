@@ -1,6 +1,10 @@
 import { Select } from "@chakra-ui/react";
 
-function IntegrationSelector() {
+interface IntegrationSelectorProps {
+    setActiveForm:(activeFormId:string)=>unknown
+}
+
+function IntegrationSelector({setActiveForm}:IntegrationSelectorProps) {
     return ( 
         <Select placeholder='Select Integration Form'>
             <option value='option1'>Snapshot</option>

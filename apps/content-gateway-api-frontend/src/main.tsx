@@ -1,3 +1,4 @@
+import 'bootstrap/dist/css/bootstrap.css';
 import { ChakraProvider } from "@chakra-ui/react";
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom";

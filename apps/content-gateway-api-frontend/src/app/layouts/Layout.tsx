@@ -1,11 +1,12 @@
+import { JSX } from "@emotion/react/types/jsx-runtime";
 import { FunctionComponent } from "react";
 import Nav from "../sections/Nav";
 
-type Props = {
+type LayoutProps = {
     children: JSX.Element;
 };
 
-const Layout: FunctionComponent<Props> = ({ children }) => {
+const Layout = ({ children }:LayoutProps) => {
     return (
         <>
             <Nav />
