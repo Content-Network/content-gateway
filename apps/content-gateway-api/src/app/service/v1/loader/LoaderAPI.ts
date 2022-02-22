@@ -1,19 +1,13 @@
-import {
-    createContentGatewayClient,
-    createHTTPAdapterV1
-} from "@banklessdao/content-gateway-sdk";
-import { createLogger } from "@banklessdao/util-misc";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { schemaInfoToString } from "@banklessdao/util-schema";
-import { PrismaClient } from "@cgl/prisma";
-import { createLoaderRegistry } from "@domain/feature-loaders";
 import {
-    createJobScheduler,
     DEFAULT_CURSOR,
     DEFAULT_LIMIT,
     Job,
-    ScheduleMode
+    JobRepository,
+    JobScheduler,
+    ScheduleMode,
 } from "@shared/util-loaders";
-import * as bodyParser from "body-parser";
 import * as express from "express";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
@@ -21,69 +15,25 @@ import * as TE from "fp-ts/TaskEither";
 import * as TO from "fp-ts/TaskOption";
 import * as t from "io-ts";
 import { withMessage } from "io-ts-types";
-import { join } from "path";
-import { createJobRepository } from "../repository/PrismaJobRepository";
+import { Db } from "mongodb";
+import { MongoJob } from "../../..";
 
-export type AppParams = {
-    nodeEnv: string;
-    resetDb: boolean;
-    addFrontend: boolean;
-    prisma: PrismaClient;
-    cgaAPIKey: string;
-    cgaURL: string;
-    youtubeAPIKey: string;
-    ghostAPIKey: string;
-    snapshotSpaces: string[];
+type LoaderAPIParams = {
+    db: Db;
+    app: express.Application;
+    jobsCollectionName: string;
+    jobRepository: JobRepository;
+    jobScheduler: JobScheduler;
 };
 
-export const createApp = async (appParams: AppParams) => {
-    const { prisma, nodeEnv } = appParams;
-    const isProd = nodeEnv === "production";
-    const logger = createLogger("ContentGatewayLoaderApp");
-
-    if (appParams.resetDb) {
-        logger.info("Database reset requested. Resetting...");
-        await prisma.jobLog.deleteMany({});
-        await prisma.jobSchedule.deleteMany({});
-    }
-
-    logger.info(`Running in ${nodeEnv} mode`);
-
-    const loaderRegistry = createLoaderRegistry({
-        ghostApiKey: appParams.ghostAPIKey,
-        youtubeApiKey: appParams.youtubeAPIKey,
-        snapshotSpaces: appParams.snapshotSpaces,
-    });
-    const jobRepository = createJobRepository(prisma);
-
-    const contentGatewayClient = createContentGatewayClient({
-        adapter: createHTTPAdapterV1({
-            apiUrl: appParams.cgaURL,
-            apiKey: appParams.cgaAPIKey,
-        }),
-    });
-
-    const scheduler = createJobScheduler({
-        jobRepository,
-        contentGatewayClient,
-    });
-
-    await pipe(
-        scheduler.start(),
-        TE.mapLeft((err) => {
-            logger.error("Starting the Job scheduler failed", err);
-            return err;
-        })
-    )();
-
-    for (const loader of loaderRegistry.loaders) {
-        await scheduler.register(loader)();
-    }
-
-    const app = express();
-
-    app.use(bodyParser.json());
-
+export const addLoaderAPIV1 = async ({
+    db,
+    app,
+    jobsCollectionName,
+    jobRepository,
+    jobScheduler,
+}: LoaderAPIParams) => {
+    const jobs = db.collection<MongoJob>(jobsCollectionName);
     const NameParam = t.strict({
         name: t.string,
     });
@@ -124,7 +74,6 @@ export const createApp = async (appParams: AppParams) => {
         updatedAt: job.updatedAt.getTime(),
     });
 
-    // TODO: move these to the repo
     app.get("/api/v1/rest/jobs", async (_, res) => {
         const jobs = await jobRepository.findAll()();
         res.send(
@@ -147,7 +96,7 @@ export const createApp = async (appParams: AppParams) => {
                 },
                 (params) => {
                     return pipe(
-                        scheduler.schedule({
+                        jobScheduler.schedule({
                             info: params.info,
                             scheduledAt: new Date(params.scheduledAt),
                             scheduleMode: params.scheduleMode,
@@ -172,10 +121,10 @@ export const createApp = async (appParams: AppParams) => {
         return pipe(
             jobRepository.findAll(),
             TE.fromTask,
-            TE.chainW((jobs) => {
+            TE.chainW((result) => {
                 return pipe(
-                    jobs.map((job) => {
-                        return scheduler.schedule({
+                    result.map((job) => {
+                        return jobScheduler.schedule({
                             info: job.info,
                             scheduledAt: new Date(),
                             scheduleMode: ScheduleMode.BACKFILL,
@@ -190,8 +139,8 @@ export const createApp = async (appParams: AppParams) => {
                 (e) => async () => {
                     res.status(500).send(e);
                 },
-                (jobs) => async () => {
-                    res.send(jobs.map(mapJobToJson));
+                (result) => async () => {
+                    res.send(result.map(mapJobToJson));
                 }
             )
         )();
@@ -205,18 +154,7 @@ export const createApp = async (appParams: AppParams) => {
                     res.status(400).send(errors);
                 },
                 (params) => {
-                    prisma.jobSchedule
-                        .findUnique({
-                            where: { name: params.name },
-                            include: {
-                                log: {
-                                    orderBy: {
-                                        createdAt: "desc",
-                                    },
-                                    take: 50,
-                                },
-                            },
-                        })
+                    jobs.findOne({ name: params.name })
                         .then((job) => {
                             if (!job) {
                                 res.status(404).send("Not found");
@@ -232,7 +170,7 @@ export const createApp = async (appParams: AppParams) => {
                                         job.previousScheduledAt?.getTime(),
                                     scheduledAt: job.scheduledAt.getTime(),
                                     updatedAt: job.updatedAt.getTime(),
-                                    logs: job.log.map((log) => ({
+                                    logs: job.logs.map((log) => ({
                                         note: log.note,
                                         state: log.state,
                                         info: log.info,
@@ -267,7 +205,7 @@ export const createApp = async (appParams: AppParams) => {
                         TO.chain(TO.fromNullable),
                         TE.fromTaskOption(() => new Error("Not found")),
                         TE.chainW((job) =>
-                            scheduler.schedule({
+                            jobScheduler.schedule({
                                 info: job.info,
                                 scheduledAt: new Date(),
                                 scheduleMode: ScheduleMode.BACKFILL,
@@ -288,17 +226,4 @@ export const createApp = async (appParams: AppParams) => {
             )
         );
     });
-
-    const clientBuildPath = join(
-        __dirname,
-        "../content-gateway-loader-frontend"
-    );
-    if (appParams.addFrontend || isProd) {
-        app.use(express.static(clientBuildPath));
-        app.get("*", (_, response) => {
-            response.sendFile(join(clientBuildPath, "index.html"));
-        });
-    }
-
-    return app;
 };

@@ -3,7 +3,7 @@ import { coercePrimitive, createLogger } from "@banklessdao/util-misc";
 import {
     Schema,
     SchemaInfo,
-    schemaInfoToString,
+    schemaInfoToString
 } from "@banklessdao/util-schema";
 import {
     Cursor,
@@ -19,7 +19,7 @@ import {
     OrderDirection,
     Query,
     QueryError,
-    SchemaRepository,
+    SchemaRepository
 } from "@domain/feature-gateway";
 import * as E from "fp-ts/Either";
 import { absurd, pipe } from "fp-ts/lib/function";
@@ -30,7 +30,7 @@ import {
     Filter as MongoFilter,
     ObjectId,
     SortDirection,
-    WithId,
+    WithId
 } from "mongodb";
 import * as objectPath from "object-path";
 import { DocumentData, wrapDbOperation, wrapDbOperationWithParams } from ".";
@@ -124,7 +124,7 @@ export const createMongoDataRepository = ({
     };
 
     const convertFilters = (where: Filter[]): MongoFilter<DocumentData> => {
-        const result = [] as MongoFilter<DocumentData>;
+        const result: MongoFilter<DocumentData> = [];
         for (const filter of where) {
             const path = `data.${filter.fieldPath}`;
             switch (filter.type) {

@@ -6,7 +6,7 @@ import {
     UserDeletionError,
     UserNotFoundError,
     UserRepository,
-    UserUpdateError
+    UserUpdateError,
 } from "@domain/feature-gateway";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
@@ -25,15 +25,15 @@ export const mongoUserToCGUser = (user: MongoUser): ContentGatewayUser => {
 
 type Deps = {
     db: Db;
-    collName: string;
+    usersCollectionName: string;
 };
 
 export const createMongoUserRepository = async ({
     db,
-    collName,
+    usersCollectionName,
 }: Deps): Promise<UserRepository> => {
     const logger = createLogger("MongoUserRepository");
-    const users = db.collection<MongoUser>(collName);
+    const users = db.collection<MongoUser>(usersCollectionName);
     await users.createIndex({ name: 1 });
     await users.createIndex({ roles: 1 });
     await users.createIndex({ "apiKeys.id": 1 });
@@ -83,7 +83,12 @@ export const createMongoUserRepository = async ({
     ): TE.TaskEither<UserCreationError, ContentGatewayUser> => {
         return pipe(
             wrapDbOperation(() =>
-                users.insertOne({ name, roles, apiKeys: [] })
+                users.insertOne({
+                    name,
+                    roles,
+                    _id: new ObjectId(),
+                    apiKeys: [],
+                })
             )(),
             TE.map((result) => {
                 return mongoUserToCGUser({

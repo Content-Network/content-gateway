@@ -63,9 +63,9 @@ class Address {
 }
 
 const url =
-    process.env.MONGO_CGA_URL ?? programError("MONGO_CGA_URL is missing");
+    process.env.CG_MONGO_URL ?? programError("CG_MONGO_URL is missing");
 const dbName =
-    process.env.MONGO_CGA_USER ?? programError("MONGO_CGA_USER is missing");
+    process.env.CG_MONGO_USER ?? programError("CG_MONGO_USER is missing");
 
 describe("Given a Mongo data storage", () => {
     let target: DataRepository;
@@ -87,15 +87,15 @@ describe("Given a Mongo data storage", () => {
         users = await db.createCollection<MongoUser>(usersCollName);
         userRepository = await createMongoUserRepository({
             db,
-            collName: usersCollName,
+            usersCollectionName: usersCollName,
         });
         user = extractRight(
             await userRepository.createUser("Arnold", ["terminator"])()
         );
         schemaRepository = await createMongoSchemaRepository({
             db,
-            collName,
-            usersCollName,
+            schemasCollectionName: collName,
+            usersCollectionName: usersCollName,
         });
 
         target = createMongoDataRepository({

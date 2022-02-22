@@ -5,29 +5,34 @@ import {
     ContentGatewayUser,
     createContentGateway,
     DataRepository,
-    UserRepository
+    UserRepository,
 } from "@domain/feature-gateway";
+import { createLoaderRegistry } from "@domain/feature-loaders";
+import { JobRepository, JobScheduler } from "@shared/util-loaders";
+import * as bodyParser from "body-parser";
 import * as express from "express";
 import { graphqlHTTP } from "express-graphql";
+import { pipe } from "fp-ts/lib/function";
+import * as TE from "fp-ts/TaskEither";
 import * as g from "graphql";
-import { Collection, MongoClient, ObjectId } from "mongodb";
-import { join } from "path";
+import { Collection, Db, ObjectId } from "mongodb";
+import { ToadScheduler } from "toad-scheduler";
 import {
     authorization,
     createGraphQLAPIV1,
     createMongoUserRepository,
     ObservableSchemaRepository,
-    toObservableSchemaRepository
+    toObservableSchemaRepository,
 } from ".";
 import { createMongoDataRepository, createMongoSchemaRepository } from "./";
 import { liveLoaders } from "./live-loaders";
 import { LiveLoader } from "./live-loaders/LiveLoader";
-import { MongoUser } from "./repository/mongo/MongoUser";
-import { generateContentGatewayAPIV1 } from "./service";
-import { createJobs, JobConfig } from "./maintenance/jobs/jobs";
-import { createMongoMaintainer } from "./repository/MongoMaintainer";
-import { ToadScheduler } from "toad-scheduler";
 import { AtlasApiInfo } from "./maintenance/jobs/index-handling/IndexCreationJob";
+import { createJobs, JobConfig } from "./maintenance/jobs/jobs";
+import { MongoUser } from "./repository/mongo/MongoUser";
+import { createMongoMaintainer } from "./repository/MongoMaintainer";
+import { createContentGatewayAPIV1 } from "./service";
+import { addLoaderAPIV1 } from "./service/v1/loader/LoaderAPI";
 
 export type ApplicationContext = {
     app: express.Application;
@@ -37,37 +42,118 @@ export type ApplicationContext = {
     contentGateway: ContentGateway;
 };
 
-export type AppParams = {
+type APIParams = {
     nodeEnv: string;
-    resetDb: boolean;
-    addFrontend: boolean;
-    dbName: string;
-    mongoClient: MongoClient;
+    db: Db;
+    jobRepository: JobRepository;
+    jobScheduler: JobScheduler;
+    jobsCollectionName: string;
     schemasCollectionName: string;
     usersCollectionName: string;
     rootUser: ContentGatewayUser;
-    rootApiKey: string;
-    atlasApiInfo: AtlasApiInfo
 };
 
-export const createApp = async (params: AppParams) => {
-    const logger = createLogger("ContentGatewayAPIApp");
-    const { dbName, mongoClient } = params;
-    const db = mongoClient.db(dbName);
-    const users = db.collection<MongoUser>(params.usersCollectionName);
+const logger = createLogger("ContentGateway");
 
-    if (params.resetDb) {
-        await mongoClient.db(dbName).dropDatabase();
-    }
+export const createAPIs = async (params: APIParams) => {
     logger.info(`Running in ${params.nodeEnv} mode`);
-
+    const {
+        db,
+        jobsCollectionName,
+        jobRepository,
+        jobScheduler,
+        rootUser,
+        schemasCollectionName,
+        usersCollectionName,
+    } = params;
     const app = express();
+    app.use(bodyParser.json({ limit: "50mb" }));
+
+    await addCgApiV1({
+        db,
+        app,
+        rootUser,
+        schemasCollectionName,
+        usersCollectionName,
+    });
+
+    await addLoaderAPIV1({
+        db,
+        app,
+        jobsCollectionName,
+        jobRepository,
+        jobScheduler,
+    });
+
+    return app;
+};
+
+type CoreLoaderAppParams = {
+    app: express.Application;
+    jobScheduler: JobScheduler;
+    apiUrl: string;
+    apiKey: string;
+    // optional
+    ghostAPIKey?: string;
+    youtubeAPIKey?: string;
+    snapshotSpaces?: string[];
+    discordBotToken?: string;
+    discordChannel?: string;
+};
+
+export const addCoreLoaders = async (appParams: CoreLoaderAppParams) => {
+    const {
+        ghostAPIKey,
+        youtubeAPIKey,
+        snapshotSpaces,
+        discordBotToken,
+        discordChannel,
+        jobScheduler,
+    } = appParams;
+
+    const loaderRegistry = createLoaderRegistry({
+        ghostApiKey: ghostAPIKey,
+        youtubeApiKey: youtubeAPIKey,
+        snapshotSpaces,
+        discordBotToken,
+        discordChannel,
+    });
+
+    await pipe(
+        jobScheduler.start(),
+        TE.mapLeft((err) => {
+            logger.error("Starting the Job scheduler failed", err);
+            return err;
+        })
+    )();
+
+    for (const loader of loaderRegistry.loaders) {
+        await jobScheduler.register(loader)();
+    }
+};
+
+type CgApiParams = {
+    db: Db;
+    app: express.Application;
+    usersCollectionName: string;
+    schemasCollectionName: string;
+    rootUser: ContentGatewayUser;
+};
+
+const addCgApiV1 = async ({
+    db,
+    usersCollectionName,
+    schemasCollectionName,
+    app,
+    rootUser,
+}: CgApiParams) => {
+    const users = db.collection<MongoUser>(usersCollectionName);
 
     const schemaRepository = toObservableSchemaRepository(
         await createMongoSchemaRepository({
             db,
-            collName: params.schemasCollectionName,
-            usersCollName: params.usersCollectionName,
+            schemasCollectionName,
+            usersCollectionName,
         })
     );
 
@@ -78,7 +164,7 @@ export const createApp = async (params: AppParams) => {
 
     const userRepository = await createMongoUserRepository({
         db,
-        collName: params.usersCollectionName,
+        usersCollectionName,
     });
 
     const contentGateway = createContentGateway({
@@ -87,12 +173,6 @@ export const createApp = async (params: AppParams) => {
         schemaRepository,
         authorization,
     });
-    const maintenanceJobConfig: JobConfig = {
-        atlasApiInfo: params.atlasApiInfo
-    }
-    const maintenanceJobs = createJobs(maintenanceJobConfig,mongoClient.db(dbName))
-    const maintenanceJobsScheduler = new ToadScheduler()
-    createMongoMaintainer(maintenanceJobs,maintenanceJobsScheduler)
 
     const context: ApplicationContext = {
         app,
@@ -102,9 +182,9 @@ export const createApp = async (params: AppParams) => {
         contentGateway,
     };
 
-    await ensureRootUserExists(params.rootUser, users);
+    await ensureRootUserExists(rootUser, users);
 
-    app.use("/api/v1/rest/", await generateContentGatewayAPIV1(context));
+    app.use("/api/v1/rest/", await createContentGatewayAPIV1(context));
     app.use("/api/v1/graphql/", await createGraphQLAPIV1(context));
     app.use(
         "/api/v1/graphql-live",
@@ -112,16 +192,33 @@ export const createApp = async (params: AppParams) => {
             liveLoaders: liveLoaders,
         })
     );
+};
 
-    const clientBuildPath = join(__dirname, "../content-gateway-api-frontend");
-    if (params.addFrontend) {
-        app.use(express.static(clientBuildPath));
-        app.get("*", (_, response) => {
-            response.sendFile(join(clientBuildPath, "index.html"));
-        });
+type MaintenanceJobsParams = {
+    atlasApiInfo?: AtlasApiInfo;
+    db: Db;
+    toad: ToadScheduler;
+};
+
+export const addMaintenanceJobs = ({
+    atlasApiInfo,
+    db,
+    toad,
+}: MaintenanceJobsParams) => {
+    if (atlasApiInfo) {
+        logger.info(
+            "Atlas information was present, creating index maintenance job"
+        );
+        const maintenanceJobConfig: JobConfig = {
+            atlasApiInfo: atlasApiInfo,
+        };
+        const maintenanceJobs = createJobs(maintenanceJobConfig, db);
+        createMongoMaintainer(maintenanceJobs, toad);
+    } else {
+        logger.info(
+            "Atlas information was not present, skipping index maintenance job"
+        );
     }
-
-    return app;
 };
 
 const ensureRootUserExists = async (

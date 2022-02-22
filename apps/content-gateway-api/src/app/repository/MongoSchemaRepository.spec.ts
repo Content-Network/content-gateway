@@ -75,9 +75,9 @@ const createSchema = (type: ClassType, version: string) => {
 };
 
 const url =
-    process.env.MONGO_CGA_URL ?? programError("MONGO_CGA_URL is missing");
+    process.env.CG_MONGO_URL ?? programError("CG_MONGO_URL is missing");
 const dbName =
-    process.env.MONGO_CGA_USER ?? programError("MONGO_CGA_USER is missing");
+    process.env.CG_MONGO_USER ?? programError("CG_MONGO_USER is missing");
 
 describe("Given a Mongo schema storage", () => {
     let target: SchemaRepository;
@@ -100,7 +100,7 @@ describe("Given a Mongo schema storage", () => {
         users = db.collection<MongoUser>(usersCollName);
         userRepository = await createMongoUserRepository({
             db,
-            collName: usersCollName,
+            usersCollectionName: usersCollName,
         });
         user = extractRight(
             await userRepository.createUser("test", ["admin"])()
@@ -108,8 +108,8 @@ describe("Given a Mongo schema storage", () => {
 
         target = await createMongoSchemaRepository({
             db,
-            collName,
-            usersCollName,
+            schemasCollectionName: collName,
+            usersCollectionName: usersCollName,
         });
     });
 

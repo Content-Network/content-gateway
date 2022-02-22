@@ -28,16 +28,16 @@ import { MongoSchema, mongoUserToCGUser, wrapDbOperation } from ".";
 
 type Deps = {
     db: Db;
-    collName: string;
-    usersCollName: string;
+    schemasCollectionName: string;
+    usersCollectionName: string;
 };
 
 export const createMongoSchemaRepository = async ({
     db,
-    collName,
-    usersCollName,
+    schemasCollectionName,
+    usersCollectionName,
 }: Deps): Promise<SchemaRepository> => {
-    const schemas = db.collection<MongoSchema>(collName);
+    const schemas = db.collection<MongoSchema>(schemasCollectionName);
 
     // TODO! test if the index was created
     await schemas.createIndex({ key: 1 }, { unique: true });
@@ -73,7 +73,7 @@ export const createMongoSchemaRepository = async ({
                             },
                             {
                                 $lookup: {
-                                    from: usersCollName,
+                                    from: usersCollectionName,
                                     localField: "ownerId",
                                     foreignField: "userId",
                                     as: "users",
@@ -278,7 +278,7 @@ export const createMongoSchemaRepository = async ({
                         },
                         {
                             $lookup: {
-                                from: usersCollName,
+                                from: usersCollectionName,
                                 localField: "ownerId",
                                 foreignField: "userId",
                                 as: "users",
