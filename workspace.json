@@ -37,6 +37,108 @@
                 }
             }
         },
+        "banklessdao-util-data": {
+            "root": "libs/banklessdao/util-data",
+            "sourceRoot": "libs/banklessdao/util-data/src",
+            "projectType": "library",
+            "targets": {
+                "build": {
+                    "executor": "@nrwl/workspace:tsc",
+                    "outputs": ["{options.outputPath}"],
+                    "options": {
+                        "outputPath": "dist/libs/banklessdao/util-data",
+                        "main": "libs/banklessdao/util-data/src/index.ts",
+                        "tsConfig": "libs/banklessdao/util-data/tsconfig.lib.json",
+                        "assets": ["libs/banklessdao/util-data/*.md"]
+                    }
+                },
+                "lint": {
+                    "executor": "@nrwl/linter:eslint",
+                    "outputs": ["{options.outputFile}"],
+                    "options": {
+                        "lintFilePatterns": [
+                            "libs/banklessdao/util-data/**/*.ts"
+                        ]
+                    }
+                },
+                "test": {
+                    "executor": "@nrwl/jest:jest",
+                    "outputs": ["coverage/libs/banklessdao/util-data"],
+                    "options": {
+                        "jestConfig": "libs/banklessdao/util-data/jest.config.js",
+                        "passWithNoTests": true
+                    }
+                }
+            }
+        },
+        "banklessdao-util-misc": {
+            "root": "libs/banklessdao/util-misc",
+            "sourceRoot": "libs/banklessdao/util-misc/src",
+            "projectType": "library",
+            "targets": {
+                "build": {
+                    "executor": "@nrwl/workspace:tsc",
+                    "outputs": ["{options.outputPath}"],
+                    "options": {
+                        "outputPath": "dist/libs/banklessdao/util-misc",
+                        "main": "libs/banklessdao/util-misc/src/index.ts",
+                        "tsConfig": "libs/banklessdao/util-misc/tsconfig.lib.json",
+                        "assets": ["libs/banklessdao/util-misc/*.md"]
+                    }
+                },
+                "lint": {
+                    "executor": "@nrwl/linter:eslint",
+                    "outputs": ["{options.outputFile}"],
+                    "options": {
+                        "lintFilePatterns": [
+                            "libs/banklessdao/util-misc/**/*.ts"
+                        ]
+                    }
+                },
+                "test": {
+                    "executor": "@nrwl/jest:jest",
+                    "outputs": ["coverage/libs/banklessdao/util-misc"],
+                    "options": {
+                        "jestConfig": "libs/banklessdao/util-misc/jest.config.js",
+                        "passWithNoTests": true
+                    }
+                }
+            }
+        },
+        "banklessdao-util-schema": {
+            "root": "libs/banklessdao/util-schema",
+            "sourceRoot": "libs/banklessdao/util-schema/src",
+            "projectType": "library",
+            "targets": {
+                "build": {
+                    "executor": "@nrwl/workspace:tsc",
+                    "outputs": ["{options.outputPath}"],
+                    "options": {
+                        "outputPath": "dist/libs/banklessdao/util-schema",
+                        "main": "libs/banklessdao/util-schema/src/index.ts",
+                        "tsConfig": "libs/banklessdao/util-schema/tsconfig.lib.json",
+                        "assets": ["libs/banklessdao/util-schema/*.md"]
+                    }
+                },
+                "lint": {
+                    "executor": "@nrwl/linter:eslint",
+                    "outputs": ["{options.outputFile}"],
+                    "options": {
+                        "lintFilePatterns": [
+                            "libs/banklessdao/util-schema/**/*.ts"
+                        ]
+                    }
+                },
+                "test": {
+                    "executor": "@nrwl/jest:jest",
+                    "outputs": ["coverage/libs/banklessdao/util-schema"],
+                    "options": {
+                        "jestConfig": "libs/banklessdao/util-schema/jest.config.js",
+                        "passWithNoTests": true
+                    }
+                }
+            }
+        },
         "content-gateway-api": {
             "root": "apps/content-gateway-api",
             "sourceRoot": "apps/content-gateway-api/src",
@@ -167,6 +269,92 @@
                     }
                 }
             }
+        },
+        "content-gateway-frontend": {
+            "root": "apps/content-gateway-frontend",
+            "sourceRoot": "apps/content-gateway-frontend",
+            "projectType": "application",
+            "targets": {
+                "build": {
+                    "executor": "@nrwl/next:build",
+                    "outputs": ["{options.outputPath}"],
+                    "defaultConfiguration": "production",
+                    "options": {
+                        "root": "apps/content-gateway-frontend",
+                        "outputPath": "dist/apps/content-gateway-frontend"
+                    },
+                    "configurations": {
+                        "production": {}
+                    }
+                },
+                "serve": {
+                    "executor": "@nrwl/next:server",
+                    "options": {
+                        "buildTarget": "content-gateway-frontend:build",
+                        "dev": true
+                    },
+                    "configurations": {
+                        "production": {
+                            "buildTarget": "content-gateway-frontend:build:production",
+                            "dev": false
+                        }
+                    }
+                },
+                "export": {
+                    "executor": "@nrwl/next:export",
+                    "options": {
+                        "buildTarget": "content-gateway-frontend:build:production"
+                    }
+                },
+                "test": {
+                    "executor": "@nrwl/jest:jest",
+                    "outputs": ["coverage/apps/content-gateway-frontend"],
+                    "options": {
+                        "jestConfig": "apps/content-gateway-frontend/jest.config.js",
+                        "passWithNoTests": true
+                    }
+                },
+                "lint": {
+                    "executor": "@nrwl/linter:eslint",
+                    "outputs": ["{options.outputFile}"],
+                    "options": {
+                        "lintFilePatterns": [
+                            "apps/content-gateway-frontend/**/*.{ts,tsx,js,jsx}"
+                        ]
+                    }
+                }
+            },
+            "tags": []
+        },
+        "content-gateway-frontend-e2e": {
+            "root": "apps/content-gateway-frontend-e2e",
+            "sourceRoot": "apps/content-gateway-frontend-e2e/src",
+            "projectType": "application",
+            "targets": {
+                "e2e": {
+                    "executor": "@nrwl/cypress:cypress",
+                    "options": {
+                        "cypressConfig": "apps/content-gateway-frontend-e2e/cypress.json",
+                        "devServerTarget": "content-gateway-frontend:serve"
+                    },
+                    "configurations": {
+                        "production": {
+                            "devServerTarget": "content-gateway-frontend:serve:production"
+                        }
+                    }
+                },
+                "lint": {
+                    "executor": "@nrwl/linter:eslint",
+                    "outputs": ["{options.outputFile}"],
+                    "options": {
+                        "lintFilePatterns": [
+                            "apps/content-gateway-frontend-e2e/**/*.{js,ts}"
+                        ]
+                    }
+                }
+            },
+            "tags": [],
+            "implicitDependencies": ["content-gateway-frontend"]
         },
         "content-gateway-loader": {
             "root": "apps/content-gateway-loader",
@@ -393,70 +581,6 @@
                 }
             }
         },
-        "banklessdao-util-data": {
-            "root": "libs/banklessdao/util-data",
-            "sourceRoot": "libs/banklessdao/util-data/src",
-            "projectType": "library",
-            "targets": {
-                "build": {
-                    "executor": "@nrwl/workspace:tsc",
-                    "outputs": ["{options.outputPath}"],
-                    "options": {
-                        "outputPath": "dist/libs/banklessdao/util-data",
-                        "main": "libs/banklessdao/util-data/src/index.ts",
-                        "tsConfig": "libs/banklessdao/util-data/tsconfig.lib.json",
-                        "assets": ["libs/banklessdao/util-data/*.md"]
-                    }
-                },
-                "lint": {
-                    "executor": "@nrwl/linter:eslint",
-                    "outputs": ["{options.outputFile}"],
-                    "options": {
-                        "lintFilePatterns": ["libs/banklessdao/util-data/**/*.ts"]
-                    }
-                },
-                "test": {
-                    "executor": "@nrwl/jest:jest",
-                    "outputs": ["coverage/libs/banklessdao/util-data"],
-                    "options": {
-                        "jestConfig": "libs/banklessdao/util-data/jest.config.js",
-                        "passWithNoTests": true
-                    }
-                }
-            }
-        },
-        "banklessdao-util-misc": {
-            "root": "libs/banklessdao/util-misc",
-            "sourceRoot": "libs/banklessdao/util-misc/src",
-            "projectType": "library",
-            "targets": {
-                "build": {
-                    "executor": "@nrwl/workspace:tsc",
-                    "outputs": ["{options.outputPath}"],
-                    "options": {
-                        "outputPath": "dist/libs/banklessdao/util-misc",
-                        "main": "libs/banklessdao/util-misc/src/index.ts",
-                        "tsConfig": "libs/banklessdao/util-misc/tsconfig.lib.json",
-                        "assets": ["libs/banklessdao/util-misc/*.md"]
-                    }
-                },
-                "lint": {
-                    "executor": "@nrwl/linter:eslint",
-                    "outputs": ["{options.outputFile}"],
-                    "options": {
-                        "lintFilePatterns": ["libs/banklessdao/util-misc/**/*.ts"]
-                    }
-                },
-                "test": {
-                    "executor": "@nrwl/jest:jest",
-                    "outputs": ["coverage/libs/banklessdao/util-misc"],
-                    "options": {
-                        "jestConfig": "libs/banklessdao/util-misc/jest.config.js",
-                        "passWithNoTests": true
-                    }
-                }
-            }
-        },
         "shared-util-graphql": {
             "root": "libs/shared/util-graphql",
             "sourceRoot": "libs/shared/util-graphql/src",
@@ -519,58 +643,6 @@
                         "passWithNoTests": true
                     }
                 }
-            }
-        },
-        "banklessdao-util-schema": {
-            "root": "libs/banklessdao/util-schema",
-            "sourceRoot": "libs/banklessdao/util-schema/src",
-            "projectType": "library",
-            "targets": {
-                "build": {
-                    "executor": "@nrwl/workspace:tsc",
-                    "outputs": ["{options.outputPath}"],
-                    "options": {
-                        "outputPath": "dist/libs/banklessdao/util-schema",
-                        "main": "libs/banklessdao/util-schema/src/index.ts",
-                        "tsConfig": "libs/banklessdao/util-schema/tsconfig.lib.json",
-                        "assets": ["libs/banklessdao/util-schema/*.md"]
-                    }
-                },
-                "lint": {
-                    "executor": "@nrwl/linter:eslint",
-                    "outputs": ["{options.outputFile}"],
-                    "options": {
-                        "lintFilePatterns": ["libs/banklessdao/util-schema/**/*.ts"]
-                    }
-                },
-                "test": {
-                    "executor": "@nrwl/jest:jest",
-                    "outputs": ["coverage/libs/banklessdao/util-schema"],
-                    "options": {
-                        "jestConfig": "libs/banklessdao/util-schema/jest.config.js",
-                        "passWithNoTests": true
-                    }
-                }
-            }
-        }
-    },
-    "cli": {
-        "defaultCollection": "@nrwl/express"
-    },
-    "defaultProject": "content-gateway-api",
-    "generators": {
-        "@nrwl/react": {
-            "application": {
-                "style": "emotion",
-                "linter": "eslint",
-                "babel": true
-            },
-            "component": {
-                "style": "emotion"
-            },
-            "library": {
-                "style": "emotion",
-                "linter": "eslint"
             }
         }
     }

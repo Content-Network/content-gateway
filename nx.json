@@ -68,5 +68,31 @@
         "banklessdao-util-schema": {
             "tags": []
         }
-    }
+    },
+    "cli": {
+        "defaultCollection": "@nrwl/express"
+    },
+    "generators": {
+        "@nrwl/react": {
+            "application": {
+                "style": "emotion",
+                "linter": "eslint",
+                "babel": true
+            },
+            "component": {
+                "style": "emotion"
+            },
+            "library": {
+                "style": "emotion",
+                "linter": "eslint"
+            }
+        },
+        "@nrwl/next": {
+            "application": {
+                "style": "@emotion/styled",
+                "linter": "eslint"
+            }
+        }
+    },
+    "defaultProject": "content-gateway-api"
 }
