@@ -2,6 +2,7 @@ import { ProgramError, UnknownError } from "@banklessdao/util-data";
 import { createLogger } from "@banklessdao/util-misc";
 import {
     ClassType,
+    createSchemaFromClass,
     SchemaInfo,
     schemaInfoToString
 } from "@banklessdao/util-schema";
@@ -31,7 +32,8 @@ export type CadenceConfig = {
  */
 export abstract class DataLoaderBase<R, M> implements DataLoader<M> {
     // public
-    abstract info: SchemaInfo;
+    info: SchemaInfo;
+
 
     // protected
     protected logger: Logger = createLogger(this.constructor.name);

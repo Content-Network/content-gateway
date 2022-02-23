@@ -1,11 +1,12 @@
 import { createLogger } from "@banklessdao/util-misc";
 import { DataLoader } from "@shared/util-loaders";
+import { createSchemaFromClass } from "@banklessdao/util-schema";
 import {
     createBANKAccountLoader,
     createBanklessAcademyCourseLoader,
     createBountyLoader,
     createPOAPAccountLoader,
-    createPOAPTokenLoader
+    createPOAPTokenLoader,
 } from ".";
 import { createBanklessPodcastLoader } from "./bankless-podcast";
 import { createBANKTransactionLoader } from "./bankless-token/BanklessTokenTransactionLoader";
@@ -16,6 +17,7 @@ import { createENSDomainLoader } from "./ens/ENSLoader";
 import { createPOAPEventLoader } from "./poap-token/POAPEventLoader";
 import { createPOAPTransferLoader } from "./poap-token/POAPTransferLoader";
 import { createSnapshotProposalLoader } from "./snapshot";
+import { createYouTubeLoader, YouTubeLoader } from "./youtube";
 
 export type LoadersConfig = {
     youtubeApiKey?: string;
@@ -31,8 +33,9 @@ const logger = createLogger("loaders");
  * 📗 Note for developers: this is where you should add your loader(s).
  */
 export const createLoaders = (apiKeys: LoadersConfig) => {
+    createSchemaFromClass(YouTubeLoader); // jsut for testing purposes, should go into loader or baseloader
     const loaders = [
-        createBanklessAcademyCourseLoader(),
+        /*     createBanklessAcademyCourseLoader(),
         createBountyLoader(),
         createBANKAccountLoader(),
         createBANKTransactionLoader(),
@@ -41,9 +44,19 @@ export const createLoaders = (apiKeys: LoadersConfig) => {
         createPOAPTokenLoader(),
         createPOAPAccountLoader(),
         createPOAPTransferLoader(),
-        createENSDomainLoader(),
+        createENSDomainLoader(),*/
+        createYouTubeLoader(
+            apiKeys.youtubeApiKey ?? "",
+            "PLmkdAgtxf3ahEmMWNY52BX3t1o7vb4aN5",
+            { namespace: "bankless", name: "podcast", version: "V1" }
+        ),
+        createYouTubeLoader(
+            apiKeys.youtubeApiKey ?? "",
+            "PLxKM96XfN8gCGOxl0wxduL8kfa4wRBvfX",
+            { namespace: "bankless", name: "community-call", version: "V1" }
+        ),
     ] as DataLoader<unknown>[];
-    if (apiKeys.youtubeApiKey) {
+    /*  if (apiKeys.youtubeApiKey) {
         loaders.push(
             createBanklessPodcastLoader(
                 apiKeys.youtubeApiKey
@@ -85,6 +98,6 @@ export const createLoaders = (apiKeys: LoadersConfig) => {
         logger.warn(
             "No discord bot token or channel provided, skipping discord loader"
         );
-    }
+    }*/
     return loaders;
 };
