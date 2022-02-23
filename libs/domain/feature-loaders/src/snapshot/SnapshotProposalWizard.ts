@@ -1,11 +1,12 @@
-import Ajv, { JSONSchemaType } from "ajv";
-const ajv = new Ajv();
+import { JSONSchemaType } from "ajv";
+import { createSnapshotProposalLoader } from ".";
+import { makeWizardLoaderConfig } from "@shared/util-loaders";
 
 interface SnapshotProposalWizardDataType {
-    spaces: string[]
+    spaces: string[];
 }
 
-const schema: JSONSchemaType<SnapshotProposalWizardDataType> = {
+export const snapshotProposalSchema: JSONSchemaType<SnapshotProposalWizardDataType> = {
     type: "object",
     properties: {
         spaces: {
@@ -17,7 +18,12 @@ const schema: JSONSchemaType<SnapshotProposalWizardDataType> = {
     required: ["spaces"],
 };
 
-/**
- * 1. use the schema to generate forms
- * 2. wrap the create loader function so that it accepts VALIDATED wizard data
- */
+const wizardDataToLoader = (data: SnapshotProposalWizardDataType) => {
+    return createSnapshotProposalLoader(data.spaces);
+};
+
+export const snapshotProposalWizardConfig = makeWizardLoaderConfig(
+    wizardDataToLoader,
+    snapshotProposalSchema,
+    "SnapshotProposal"
+);

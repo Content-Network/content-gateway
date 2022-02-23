@@ -6,4 +6,5 @@ export * from "./defaults";
 export * from "./LoaderRegistry";
 export * from "./loaders";
 export * from "./poap-token";
+export * from "./wizards"
 
