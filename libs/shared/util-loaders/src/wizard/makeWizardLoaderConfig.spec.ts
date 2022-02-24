@@ -4,7 +4,9 @@ import { convertToWizardLoader } from "./makeWizardLoaderConfig"
 
 describe("makeWizardLoaderConfig",()=>{
     describe("convertToWizardLoader",()=>{
-        const dummyDataLoaderBase = (_:any)=>({} as DataLoaderBase<unknown,unknown>)
+        // Yes ts I know I know
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars 
+        const dummyDataLoaderBase = (_:unknown)=>({} as DataLoaderBase<unknown,unknown>)
         it("should create a loader for the json schema on the ajv website",()=>{
             convertToWizardLoader(dummyDataLoaderBase,exampleJSONSchema)
         })

@@ -5,9 +5,8 @@ interface WizardFormPropTypes {
     activeFormId?: string;
 }
 
-const schema = wizards[0].schema
-
 function WizardForm({ activeFormId }: WizardFormPropTypes) {
+    const schema = wizards[activeFormId].schema
     return (
         <div css={formCss}>
             <Form schema={schema} />

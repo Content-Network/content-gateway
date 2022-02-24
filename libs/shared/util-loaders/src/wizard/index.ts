@@ -1,1 +1,5 @@
-export {makeWizardLoaderConfig, WrappedJSONSchemaType} from "./makeWizardLoaderConfig"
+export {
+    makeWizardLoaderConfig,
+    WrappedJSONSchemaType,
+    WeakWizardLoaderConfig,
+} from "./makeWizardLoaderConfig";

@@ -28,7 +28,7 @@ export interface WizardLoaderConfig<T> {
  */
 export interface WeakWizardLoaderConfig
     extends Omit<WizardLoaderConfig<unknown>, "schema"> {
-    schema: Record<string, unknown>;
+    schema: RequireExtraInfo & Record<string, unknown>;
 }
 
 type MakeWizardLoaderType = (
