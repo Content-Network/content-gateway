@@ -2,12 +2,23 @@
 import Form from "@rjsf/core";
 import React from 'react'
 import { css } from '@emotion/react'
-import { wizards, snapshotProposalSchema as schema } from "@domain/feature-loaders"
-//import { makeWizardLoaderConfig } from "@shared/util-loaders";
+import { wizards } from "@domain/feature-loaders"
 interface WizardFormPropTypes {
     activeFormId?: string;
 }
 
+// const schema = {
+//     type: "object",
+//     properties: {
+//         spaces: {
+//             type: "array",
+//             minItems: 1,
+//             items: { type: "string", minLength: 1 }
+//         },
+//     },
+//     required: ["spaces"],
+// };
+const schema = wizards[0].schema
 
 function WizardForm({ activeFormId }: WizardFormPropTypes) {
     return (

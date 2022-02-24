@@ -13,7 +13,7 @@
              "type": "node",
              "request": "launch",
              "attachSimplePort": 9229,
-             "envFile": "${workspaceFolder}/scripts/set-env",
+             "envFile": "${workspaceFolder}/script/set-env",
              "program": "${workspaceFolder}/node_modules/@nrwl/cli/bin/nx.js",
              "args": [
                "serve", 
@@ -29,7 +29,7 @@
              "type": "node",
              "request": "launch",
              "attachSimplePort": 9228,
-             "envFile": "${workspaceFolder}/scripts/set-env",
+             "envFile": "${workspaceFolder}/script/set-env",
              "program": "${workspaceFolder}/node_modules/@nrwl/cli/bin/nx.js",
              "args": [
                "serve", 
@@ -39,6 +39,20 @@
              ],
              "cwd": "${workspaceFolder}",
              "console": "integratedTerminal"
-        }
+        },
+        {
+          "name": "Debug Frontend",
+           "type": "node",
+           "request": "launch",
+           "attachSimplePort": 9229,
+           "envFile": "${workspaceFolder}/script/set-env",
+           "program": "${workspaceFolder}/node_modules/@nrwl/cli/bin/nx.js",
+           "args": [
+             "serve", 
+             "content-gateway-frontend",
+           ],
+           "cwd": "${workspaceFolder}",
+           "console": "integratedTerminal"
+      }
     ]
 }

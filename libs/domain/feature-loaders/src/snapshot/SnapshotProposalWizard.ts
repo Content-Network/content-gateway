@@ -1,12 +1,13 @@
-import { JSONSchemaType } from "ajv";
 import { createSnapshotProposalLoader } from ".";
-import { makeWizardLoaderConfig } from "@shared/util-loaders";
+import { makeWizardLoaderConfig, WrappedJSONSchemaType } from "@shared/util-loaders";
 
 interface SnapshotProposalWizardDataType {
     spaces: string[];
 }
 
-export const snapshotProposalSchema: JSONSchemaType<SnapshotProposalWizardDataType> = {
+const snapshotProposalSchema: WrappedJSONSchemaType<SnapshotProposalWizardDataType> = {
+    $id: "SnapshotProposal",
+    title: "Snapshot Proposal",
     type: "object",
     properties: {
         spaces: {
@@ -24,6 +25,5 @@ const wizardDataToLoader = (data: SnapshotProposalWizardDataType) => {
 
 export const snapshotProposalWizardConfig = makeWizardLoaderConfig(
     wizardDataToLoader,
-    snapshotProposalSchema,
-    "SnapshotProposal"
+    snapshotProposalSchema
 );
