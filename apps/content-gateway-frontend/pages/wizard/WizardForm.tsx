@@ -1,4 +1,4 @@
-import Form from "@rjsf/core";
+import Form from "@rjsf/bootstrap-4";
 import { css } from '@emotion/react'
 import { wizards } from "@domain/feature-loaders"
 interface WizardFormPropTypes {
