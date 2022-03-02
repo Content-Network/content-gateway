@@ -1,7 +1,12 @@
 import { createGraphQLClient, GraphQLClient } from "@banklessdao/util-data";
 import { notEmpty } from "@banklessdao/util-misc";
 import { DEFAULT_CURSOR, ScheduleMode } from "@shared/util-loaders";
-import { Data, NonEmptyProperty, RequiredProperty } from "@banklessdao/util-schema";
+import {
+    Data,
+    NonEmptyProperty,
+    RequiredProperty,
+    OptionalProperty,
+} from "@banklessdao/util-schema";
 import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
 import * as t from "io-ts";
@@ -22,7 +27,7 @@ const QUERY: DocumentNode = gql`
             name
             labelName
             createdAt
-            owner {
+            resolvedAddress {
                 id
             }
         }
@@ -51,12 +56,12 @@ class Domain {
     labelName: string;
     @RequiredProperty()
     name: string;
-    @NonEmptyProperty()
-    address: string;
+    @OptionalProperty()
+    address?: string;
 }
 
 // onwer.id is the .eth address
-const ENSOwnerCodec = t.strict({
+const ENSResolvedAddressCodec = t.strict({
     id: withMessage(t.string, () => "id is required"),
 });
 
@@ -68,7 +73,7 @@ const ENSDomainCodec = t.strict({
         () => "labelName is required"
     ),
     name: withMessage(fromNullable(t.string, "null"), () => "name is required"),
-    owner: withMessage(ENSOwnerCodec, () => "owner is required"),
+    resolvedAddress: fromNullable(ENSResolvedAddressCodec, { id: "null" }),
 });
 
 const ENSDomainsCodec = t.strict({
@@ -77,10 +82,7 @@ const ENSDomainsCodec = t.strict({
 
 type ENSDomains = t.TypeOf<typeof ENSDomainsCodec>;
 
-export class ENSDomainLoader extends GraphQLDataLoaderBase<
-    ENSDomains,
-    Domain
-> {
+export class ENSDomainLoader extends GraphQLDataLoaderBase<ENSDomains, Domain> {
     public info = INFO;
     protected batchSize = BATCH_SIZE;
     protected type = Domain;
@@ -104,7 +106,7 @@ export class ENSDomainLoader extends GraphQLDataLoaderBase<
                     createdAt: domain.createdAt,
                     name: domain.name,
                     labelName: domain.labelName,
-                    address: domain.owner.id,
+                    address: domain.resolvedAddress.id,
                 };
             })
             .filter(notEmpty);
