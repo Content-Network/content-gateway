@@ -5,8 +5,9 @@ import {
     createBanklessAcademyCourseLoader,
     createBountyLoader,
     createPOAPAccountLoader,
-    createPOAPTokenLoader
+    createPOAPTokenLoader,
 } from ".";
+import { createBanklessNewsletterLoader } from "./bankless-newsletter";
 import { createBanklessPodcastLoader } from "./bankless-podcast";
 import { createBANKTransactionLoader } from "./bankless-token/BanklessTokenTransactionLoader";
 import { createBANKTransferLoader } from "./bankless-token/BanklessTokenTransferLoader";
@@ -23,6 +24,7 @@ export type LoadersConfig = {
     snapshotSpaces?: string[];
     discordBotToken?: string;
     discordChannel?: string;
+    publisherAddress?: string;
 };
 
 const logger = createLogger("loaders");
@@ -84,6 +86,17 @@ export const createLoaders = (apiKeys: LoadersConfig) => {
     } else {
         logger.warn(
             "No discord bot token or channel provided, skipping discord loader"
+        );
+    }
+    if (apiKeys.publisherAddress) {
+        loaders.push(
+            createBanklessNewsletterLoader(
+                apiKeys.publisherAddress
+            ) as DataLoader<unknown>
+        );
+    } else {
+        logger.warn(
+            "No publisherAddress provided, skipping Bankless Newsletter loader"
         );
     }
     return loaders;

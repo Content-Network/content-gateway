@@ -94,29 +94,32 @@ type CoreLoaderAppParams = {
     apiUrl: string;
     apiKey: string;
     // optional
-    ghostAPIKey?: string;
-    youtubeAPIKey?: string;
+    ghostApiKey?: string;
+    youtubeApiKey?: string;
     snapshotSpaces?: string[];
     discordBotToken?: string;
     discordChannel?: string;
+    publisherAddress?: string;
 };
 
 export const addCoreLoaders = async (appParams: CoreLoaderAppParams) => {
     const {
-        ghostAPIKey,
-        youtubeAPIKey,
+        ghostApiKey,
+        youtubeApiKey,
         snapshotSpaces,
         discordBotToken,
         discordChannel,
+        publisherAddress,
         jobScheduler,
     } = appParams;
 
     const loaderRegistry = createLoaderRegistry({
-        ghostApiKey: ghostAPIKey,
-        youtubeApiKey: youtubeAPIKey,
+        ghostApiKey,
+        youtubeApiKey,
         snapshotSpaces,
         discordBotToken,
         discordChannel,
+        publisherAddress,
     });
 
     await pipe(
