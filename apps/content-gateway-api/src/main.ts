@@ -24,7 +24,7 @@ const schemasCollectionName = "schemas";
 const usersCollectionName = "users";
 const jobsCollectionName = "jobs";
 
-// === env var list ===
+// === mandatory env vars ===
 // * CG_MONGO_USER      mongo db name
 // * CG_MONGO_URL       mongo connection url
 // * PORT               port to listen on
@@ -33,6 +33,18 @@ const jobsCollectionName = "jobs";
 // * CG_API_URL         the (root) url of the content gateway api
 // * CG_API_KEY         content gateway api key to use for requests
 // * ROOT_USER          base64 encoded root user
+
+// === optional env vars ===
+// * ATLAS_PUBLIC_KEY   atlas public key
+// * ATLAS_PRIVATE_KEY  atlas private key
+// * ATLAS_PROJECT_ID   atlas project id
+// * ATLAS_PROCESS_ID   atlas process id
+// * YOUTUBE_API_KEY    youtube api key
+// * GHOST_API_KEY      ghost api key
+// * SNAPSHOT_SPACES    comma separated list of snapshot spaces
+// * DISCORD_BOT_TOKEN  discord bot token
+// * DISCORD_CHANNEL    discord channel to load posts from
+// * PUBLISHER_ADDRESS  publisher address for the newsletter
 
 async function main() {
     // === mandatory ===
@@ -81,11 +93,12 @@ async function main() {
         : undefined;
 
     // === loaders ===
-    const youtubeAPIKey = process.env.YOUTUBE_API_KEY;
-    const ghostAPIKey = process.env.GHOST_API_KEY;
+    const youtubeApiKey = process.env.YOUTUBE_API_KEY;
+    const ghostApiKey = process.env.GHOST_API_KEY;
     const snapshotSpaces = process.env.SNAPSHOT_SPACES?.split(",");
     const discordBotToken = process.env.DISCORD_BOT_TOKEN;
     const discordChannel = process.env.DISCORD_CHANNEL;
+    const publisherAddress = process.env.PUBLISHER_ADDRESS;
 
     await mongoClient.connect();
     await mongoClient.db("admin").command({ ping: 1 });
@@ -136,11 +149,12 @@ async function main() {
         jobScheduler,
         apiUrl,
         apiKey,
-        ghostAPIKey,
-        youtubeAPIKey,
+        ghostApiKey,
+        youtubeApiKey,
         snapshotSpaces,
         discordBotToken,
         discordChannel,
+        publisherAddress,
     });
 
     addMaintenanceJobs({
